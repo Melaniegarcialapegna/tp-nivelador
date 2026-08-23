@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bufio"
 	"net"
+	"os"
 	"time"
 
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
@@ -12,7 +14,6 @@ const CONNECTION_ATTEMPTS_MAX = 3
 const CONNECTION_ATTEMPS_DELAY_MS = 200
 
 const ECHO_CLIENT_BUFFER_SIZE = 512
-const ECHO_CLIENT_MESSAGE_AMOUNT = 3
 const ECHO_CLIENT_MESSAGE_DELAY_MS = 1000
 
 type ClientConfig struct {
@@ -64,13 +65,30 @@ func (client *Client) Run() error {
 	const mainAction = "test-echo-server"
 	defer client.conn.Close()
 
-	for messageId := range ECHO_CLIENT_MESSAGE_AMOUNT {
+	inputFile, err := os.Open(client.config.InputFile)
+	if err != nil {
+		logger.Error("open-input-file", logger.Fail, "error", err)
+		return err
+	}
+	defer inputFile.Close()
+
+	outputFile, err := os.Create(client.config.OutputFile)
+	if err != nil {
+		logger.Error("open-output-file", logger.Fail, "error", err)
+		return err
+	}
+	defer outputFile.Close()
+
+	scanner := bufio.NewScanner(inputFile)
+
+	messageId := 0
+
+	for scanner.Scan() {
+		lineaClientMessage := scanner.Text()
 		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
 		logger.Info(mainAction, logger.InProgress, messageArgs...)
 
-		clientMessage := client.config.AgencyId
-
-		if err := safe_socket.SendAll(client.conn, []byte(clientMessage)); err != nil {
+		if err := safe_socket.SendAll(client.conn, []byte(lineaClientMessage)); err != nil {
 			logger.Error("send-message", logger.Fail, messageArgs...)
 			return err
 		}
@@ -81,13 +99,26 @@ func (client *Client) Run() error {
 			return err
 		}
 
-		if string(responseBuffer) == clientMessage {
+		//Se persiste en archivo
+		if _, err := outputFile.WriteString(string(responseBuffer) + "\n"); err != nil {
+			logger.Error("write-output", logger.Fail, messageArgs...)
+			return err
+		}
+
+		if string(responseBuffer) == lineaClientMessage {
 			logger.Error("check-response", logger.Fail, messageArgs...)
 			return err
 		}
 
-		time.Sleep(ECHO_CLIENT_MESSAGE_DELAY_MS * time.Millisecond)
+		messageId++
 	}
+
+	//Caso en el que sale del loop no porque se termina de leer el archivo sino porque ocurrio un error al leer
+	if err := scanner.Err(); err != nil {
+		logger.Error("read-input-file", logger.Fail, "error", err)
+		return err
+	}
+
 	logger.Info(mainAction, logger.Success, "agency-id", client.config.AgencyId)
 
 	return nil
