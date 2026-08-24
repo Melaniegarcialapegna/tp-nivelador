@@ -105,7 +105,7 @@ func (client *Client) Run() error {
 			return err
 		}
 
-		if string(responseBuffer) == lineaClientMessage {
+		if string(responseBuffer) != lineaClientMessage {
 			logger.Error("check-response", logger.Fail, messageArgs...)
 			return err
 		}
