@@ -95,7 +95,7 @@ services:
     volumes:
       - ./input:/input
       - ./output:/output
-      
+
   client_5:
     build:
       context: ./services/client
