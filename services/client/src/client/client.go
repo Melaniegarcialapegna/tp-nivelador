@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
-	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
+	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/model"
+	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/protocol"
 )
 
 const CONNECTION_ATTEMPTS_MAX = 3
@@ -62,7 +65,7 @@ func connectToServer(host, port string) (net.Conn, error) {
 }
 
 func (client *Client) Run() error {
-	const mainAction = "test-echo-server"
+	const mainAction = "test-echo-server" // TODO: cambiar
 	defer client.conn.Close()
 
 	inputFile, err := os.Open(client.config.InputFile)
@@ -84,31 +87,43 @@ func (client *Client) Run() error {
 	messageId := 0
 
 	for scanner.Scan() {
-		lineaClientMessage := scanner.Text()
+		lineBet := scanner.Text()
 		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
 		logger.Info(mainAction, logger.InProgress, messageArgs...)
 
-		if err := safe_socket.SendAll(client.conn, []byte(lineaClientMessage)); err != nil {
-			logger.Error("send-message", logger.Fail, messageArgs...)
-			return err
-		}
+		//Armo Bet
+		//TODO : Modularizar en una funcion
+		fieldsBet := strings.Split(lineBet, ",")
 
-		responseBuffer, err := safe_socket.RecvAll(client.conn, ECHO_CLIENT_BUFFER_SIZE)
+		agencyId, err := strconv.Atoi(client.config.AgencyId)
 		if err != nil {
-			logger.Error("recv-response", logger.Fail, messageArgs...)
+			logger.Error("parse-agency-id", logger.Fail, messageArgs...)
 			return err
 		}
 
-		//Se persiste en archivo
-		if _, err := outputFile.WriteString(string(responseBuffer) + "\n"); err != nil {
-			logger.Error("write-output", logger.Fail, messageArgs...)
+		document, err := strconv.Atoi(fieldsBet[2])
+		if err != nil {
+			logger.Error("parse-document", logger.Fail, messageArgs...)
 			return err
 		}
 
-		if string(responseBuffer) != lineaClientMessage {
-			logger.Error("check-response", logger.Fail, messageArgs...)
+		number, err := strconv.Atoi(fieldsBet[4])
+		if err != nil {
+			logger.Error("parse-number", logger.Fail, messageArgs...)
 			return err
 		}
+
+		bet := model.Bet{
+			AgencyId:  int32(agencyId),
+			FirstName: fieldsBet[0],
+			LastName:  fieldsBet[1],
+			Document:  int32(document),
+			Birthdate: fieldsBet[3],
+			Number:    int32(number),
+		}
+
+		//Se le pasa al protocolo para que lo envie
+		protocol.SendBet(client.conn, bet)
 
 		messageId++
 	}
@@ -118,6 +133,16 @@ func (client *Client) Run() error {
 		logger.Error("read-input-file", logger.Fail, "error", err)
 		return err
 	}
+
+	//Se le avisa al protocolo que no se van a mandar mas apuestas
+	protocol.SendEnd(client.conn)
+	//Se espera la rta del ganador y se persiste en archivo
+
+	//Se persiste en archivo
+	// if _, err := outputFile.WriteString(string(responseBuffer) + "\n"); err != nil {
+	// 	logger.Error("write-output", logger.Fail, messageArgs...)
+	// 	return err
+	// }
 
 	logger.Info(mainAction, logger.Success, "agency-id", client.config.AgencyId)
 
