@@ -98,7 +98,7 @@ func deserializeBet(representationBetBytes []byte) (model.Bet, error) {
 }
 
 func readDynamicField(representationBetBytes []byte, position int) (string, int, error) {
-	if position+AMOUNT_BYTES_UINT16 >= len(representationBetBytes) {
+	if position+AMOUNT_BYTES_UINT16 > len(representationBetBytes) {
 		return "", 0, errors.New("data is too short to contain field length")
 	}
 
@@ -107,11 +107,6 @@ func readDynamicField(representationBetBytes []byte, position int) (string, int,
 	position += AMOUNT_BYTES_UINT16
 
 	//chequea si el largo es valido
-
-	if length < 0 {
-		return "", 0, errors.New("invalid dynamic field length")
-	}
-
 	if position+length > len(representationBetBytes) {
 		return "", 0, errors.New("data is too short to contain the dynamic field")
 	}

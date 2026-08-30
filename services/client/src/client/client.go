@@ -120,7 +120,10 @@ func (client *Client) Run() error {
 		}
 
 		//Se le pasa al protocolo para que lo envie
-		protocol.SendBet(client.conn, bet)
+		if err := protocol.SendBet(client.conn, bet); err != nil {
+			logger.Error("send-bet", logger.Fail, messageArgs...)
+			return err
+		}
 
 		messageId++
 	}
@@ -133,7 +136,10 @@ func (client *Client) Run() error {
 	}
 
 	//Se le avisa al protocolo que no se van a mandar mas apuestas
-	protocol.SendEnd(client.conn)
+	if err := protocol.SendEnd(client.conn); err != nil {
+		logger.Error("send-end", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return err
+	}
 
 	//Se espera la rta del ganador y se persiste en archivo
 	//TODO : Modularizar todo

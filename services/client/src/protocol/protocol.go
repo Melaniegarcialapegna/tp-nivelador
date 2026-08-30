@@ -4,6 +4,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
@@ -16,6 +17,12 @@ const AMOUNT_BYTES_UINT8 = 1
 const AMOUNT_BYTES_UINT16 = 2
 const AMOUNT_BYTES_UINT32 = 4
 const HEADER_AMOUNT = 5
+
+// ctes de protocolo
+const (
+	MESSAGE_TYPE_BET = 0 // hay una apuesta/ganador
+	MESSAGE_TYPE_END = 1 // termino de enviar
+)
 
 // serializa apuesta, le agrega header y manda por socket
 func SendBet(socket io.Writer, bet model.Bet) error {
@@ -36,7 +43,7 @@ func createHeader(payloadSize int) []byte {
 	header := make([]byte, 0) //TODO: poner 0 en cte
 
 	typeMessageBytes := make([]byte, AMOUNT_BYTES_UINT8)
-	typeMessageBytes[0] = byte('0')
+	typeMessageBytes[0] = byte(MESSAGE_TYPE_BET)
 	header = append(header, typeMessageBytes...)
 
 	payloadSizeBytes := make([]byte, AMOUNT_BYTES_UINT32)
@@ -51,7 +58,7 @@ func SendEnd(socket io.Writer) error {
 	messageEnd := make([]byte, 0) //TODO: poner 0 en cte
 
 	typeMessageBytes := make([]byte, AMOUNT_BYTES_UINT8)
-	typeMessageBytes[0] = byte('1')
+	typeMessageBytes[0] = byte(MESSAGE_TYPE_END)
 	messageEnd = append(messageEnd, typeMessageBytes...)
 
 	//MANDO 4 bytes de longitud en 0 para respetar header
@@ -83,7 +90,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 		return []model.Bet{}, err
 	}
 
-	for headerBuffer[0] == byte('0') {
+	for headerBuffer[0] == byte(MESSAGE_TYPE_BET) {
 		lenghtPayload := binary.BigEndian.Uint32(headerBuffer[AMOUNT_BYTES_UINT8:HEADER_AMOUNT])
 
 		winnerBetBytes, err := safe_socket.RecvAll(socket, int(lenghtPayload))
@@ -105,6 +112,10 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 			logger.Error("recv-response", logger.Fail) //TODO
 			return []model.Bet{}, err
 		}
+	}
+	if headerBuffer[0] != byte(MESSAGE_TYPE_END) {
+		logger.Error("recv-response", logger.Fail) //TODO
+		return nil, errors.New("unexpected message type received")
 	}
 
 	return winnersBets, nil
