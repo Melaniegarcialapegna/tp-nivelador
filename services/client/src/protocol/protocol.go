@@ -15,7 +15,7 @@ func SendBet(socket io.Writer, bet model.Bet) error { return nil }
 func SendEnd(socket io.Writer) error { return nil }
 
 // espera de manera bloqueante a q llegue el mensaje del ganador y lo deserializa devolviendole al cliente una Bet
-func RecvWinner(socket io.Reader) (model.Bet, error) { return model.Bet{}, nil }
+func ReceiveWinners(socket io.Reader) ([]model.Bet, error) { return []model.Bet{}, nil }
 
 // if err := safe_socket.SendAll(client.conn, []byte(lineaClientMessage)); err != nil {
 // 	logger.Error("send-message", logger.Fail, messageArgs...)

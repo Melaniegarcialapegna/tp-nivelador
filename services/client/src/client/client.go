@@ -16,9 +16,6 @@ import (
 const CONNECTION_ATTEMPTS_MAX = 3
 const CONNECTION_ATTEMPS_DELAY_MS = 200
 
-const ECHO_CLIENT_BUFFER_SIZE = 512
-const ECHO_CLIENT_MESSAGE_DELAY_MS = 1000
-
 type ClientConfig struct {
 	ServerHost string
 	ServerPort string
@@ -92,7 +89,7 @@ func (client *Client) Run() error {
 		logger.Info(mainAction, logger.InProgress, messageArgs...)
 
 		//Armo Bet
-		//TODO : Modularizar en una funcion
+		//TODO : Modularizar todo xd
 		fieldsBet := strings.Split(lineBet, ",")
 
 		agencyId, err := strconv.Atoi(client.config.AgencyId)
@@ -130,19 +127,29 @@ func (client *Client) Run() error {
 
 	//Caso en el que sale del loop no porque se termina de leer el archivo sino porque ocurrio un error al leer
 	if err := scanner.Err(); err != nil {
-		logger.Error("read-input-file", logger.Fail, "error", err)
+		//TODO : sacar codigo rep del "agency-id y error"
+		logger.Error("read-input-file", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
 	//Se le avisa al protocolo que no se van a mandar mas apuestas
 	protocol.SendEnd(client.conn)
-	//Se espera la rta del ganador y se persiste en archivo
 
-	//Se persiste en archivo
-	// if _, err := outputFile.WriteString(string(responseBuffer) + "\n"); err != nil {
-	// 	logger.Error("write-output", logger.Fail, messageArgs...)
-	// 	return err
-	// }
+	//Se espera la rta del ganador y se persiste en archivo
+	//TODO : Modularizar todo
+	winnersBets, err := protocol.ReceiveWinners(client.conn)
+	if err != nil {
+		logger.Error("receive-winners", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return err
+	}
+
+	for _, winnerBet := range winnersBets {
+		lineBet := winnerBet.FirstName + "," + winnerBet.LastName + "," + strconv.Itoa(int(winnerBet.Document)) + "," + winnerBet.Birthdate + "," + strconv.Itoa(int(winnerBet.Number)) + "\n"
+		if _, err := outputFile.WriteString(lineBet); err != nil {
+			logger.Error("write-output", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+			return err
+		}
+	}
 
 	logger.Info(mainAction, logger.Success, "agency-id", client.config.AgencyId)
 
