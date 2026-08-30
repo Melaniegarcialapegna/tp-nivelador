@@ -97,22 +97,22 @@ func deserializeBet(bet_bytes []byte) (model.Bet, error) {
 
 }
 
-func readDynamicField(representationBetBytes []byte, position int) (string, int, error) {
-	if position+AMOUNT_BYTES_UINT16 > len(representationBetBytes) {
+func readDynamicField(bet_bytes []byte, position int) (string, int, error) {
+	if position+AMOUNT_BYTES_UINT16 > len(bet_bytes) {
 		return "", 0, errors.New("data is too short to contain field length")
 	}
 
 	//lee el largo de el str dinamico
-	length := int(binary.BigEndian.Uint16(representationBetBytes[position : position+AMOUNT_BYTES_UINT16]))
+	length := int(binary.BigEndian.Uint16(bet_bytes[position : position+AMOUNT_BYTES_UINT16]))
 	position += AMOUNT_BYTES_UINT16
 
 	//chequea si el largo es valido
-	if position+length > len(representationBetBytes) {
+	if position+length > len(bet_bytes) {
 		return "", 0, errors.New("data is too short to contain the dynamic field")
 	}
 
 	//le el campo dinamico
-	field := string(representationBetBytes[position : position+length])
+	field := string(bet_bytes[position : position+length])
 	position += length
 
 	return field, position, nil

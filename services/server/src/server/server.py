@@ -3,9 +3,6 @@ import logger
 import protocol
 from src_frozen import Lottery
 
-_ECHO_SERVER_MESSAGE_SIZE = 1024
-
-
 class Server:
     def __init__(self, server_host: str, server_port: int,storage_path: str) -> None:
         self.server_host = server_host
