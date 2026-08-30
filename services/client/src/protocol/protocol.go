@@ -15,6 +15,7 @@ import (
 const AMOUNT_BYTES_UINT8 = 1
 const AMOUNT_BYTES_UINT16 = 2
 const AMOUNT_BYTES_UINT32 = 4
+const HEADER_AMOUNT = 5
 
 // serializa apuesta, le agrega header y manda por socket
 func SendBet(socket io.Writer, bet model.Bet) error {
@@ -53,6 +54,11 @@ func SendEnd(socket io.Writer) error {
 	typeMessageBytes[0] = byte('1')
 	messageEnd = append(messageEnd, typeMessageBytes...)
 
+	//MANDO 4 bytes de longitud en 0 para respetar header
+	payloadSizeBytes := make([]byte, AMOUNT_BYTES_UINT32)
+	binary.BigEndian.PutUint32(payloadSizeBytes, uint32(0))
+	messageEnd = append(messageEnd, payloadSizeBytes...)
+
 	if err := safe_socket.SendAll(socket, messageEnd); err != nil {
 		logger.Error("send-message", logger.Fail) //TODO: ver que mas agregarle al log y si es correcto ponerlo aca o con la capa de arriba basta xd
 		return err
@@ -61,15 +67,45 @@ func SendEnd(socket io.Writer) error {
 }
 
 // espera de manera bloqueante a q llegue el mensaje del ganador y lo deserializa devolviendole al cliente una Bet
-func ReceiveWinners(socket io.Reader) ([]model.Bet, error) { return []model.Bet{}, nil }
+// aca manejo el tema de hasta cuando me llegan, la app se abstrae de como se yo que termine de recibir ganadores
+func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
-// if err := safe_socket.SendAll(client.conn, []byte(lineaClientMessage)); err != nil {
-// 	logger.Error("send-message", logger.Fail, messageArgs...)
-// 	return err
-// }
+	//idea:
+	//leer header entero
+	//si 0 : leo resto y si 1 devuelvo
 
-// responseBuffer, err := safe_socket.RecvAll(client.conn, ECHO_CLIENT_BUFFER_SIZE)
-// if err != nil {
-// 	logger.Error("recv-response", logger.Fail, messageArgs...)
-// 	return err
-// }
+	winnersBets := make([]model.Bet, 0)
+
+	//TODO: modularizar
+	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_AMOUNT)
+	if err != nil {
+		logger.Error("recv-response", logger.Fail) //TODO
+		return []model.Bet{}, err
+	}
+
+	for headerBuffer[0] == byte('0') {
+		lenghtPayload := binary.BigEndian.Uint32(headerBuffer[AMOUNT_BYTES_UINT8:HEADER_AMOUNT])
+
+		winnerBetBytes, err := safe_socket.RecvAll(socket, int(lenghtPayload))
+		if err != nil {
+			logger.Error("recv-response", logger.Fail) //TODO
+			return []model.Bet{}, err
+		}
+
+		winnerBet, err := deserializeBet(winnerBetBytes)
+		if err != nil {
+			logger.Error("deserialize-bet", logger.Fail) //TODO
+			return []model.Bet{}, err
+		}
+
+		winnersBets = append(winnersBets, winnerBet)
+
+		headerBuffer, err = safe_socket.RecvAll(socket, HEADER_AMOUNT)
+		if err != nil {
+			logger.Error("recv-response", logger.Fail) //TODO
+			return []model.Bet{}, err
+		}
+	}
+
+	return winnersBets, nil
+}
