@@ -62,7 +62,7 @@ func connectToServer(host, port string) (net.Conn, error) {
 }
 
 func (client *Client) Run() error {
-	const mainAction = "test-echo-server" // TODO: cambiar
+	const mainAction = "test-echo-server" //TODO: cambiar
 	defer client.conn.Close()
 
 	inputFile, err := os.Open(client.config.InputFile)
