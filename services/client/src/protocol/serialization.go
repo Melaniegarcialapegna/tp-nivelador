@@ -14,30 +14,30 @@ const AMOUNT_BYTES_CONST = AMOUNT_BYTES_UINT32 + AMOUNT_BYTES_UINT32 + AMOUNT_BY
 // For the fields that are dinamic in size, will be used a separator to know how many bytes to read for each field
 // like long_dinamic_field_i|dinamic_field_i|
 func serializeBet(bet model.Bet) []byte {
-	representationBetBytes := make([]byte, 0)
+	bet_bytes := make([]byte, 0)
 
 	//pongo a los campos fijos que van directo
 	//TODO: modularizar
 	agencyIdBytes := make([]byte, AMOUNT_BYTES_UINT32)
 	binary.BigEndian.PutUint32(agencyIdBytes, uint32(bet.AgencyId))
-	representationBetBytes = append(representationBetBytes, agencyIdBytes...)
+	bet_bytes = append(bet_bytes, agencyIdBytes...)
 
 	documentBytes := make([]byte, AMOUNT_BYTES_UINT32)
 	binary.BigEndian.PutUint32(documentBytes, uint32(bet.Document))
-	representationBetBytes = append(representationBetBytes, documentBytes...)
+	bet_bytes = append(bet_bytes, documentBytes...)
 
 	numberBytes := make([]byte, AMOUNT_BYTES_UINT32)
 	binary.BigEndian.PutUint32(numberBytes, uint32(bet.Number))
-	representationBetBytes = append(representationBetBytes, numberBytes...)
+	bet_bytes = append(bet_bytes, numberBytes...)
 
 	birthdateBytes := []byte(bet.Birthdate)
-	representationBetBytes = append(representationBetBytes, birthdateBytes...)
+	bet_bytes = append(bet_bytes, birthdateBytes...)
 
 	//pongo a los campos dinamicos que van con header longitud
-	representationBetBytes = append(representationBetBytes, writeDynamicField(bet.FirstName)...)
-	representationBetBytes = append(representationBetBytes, writeDynamicField(bet.LastName)...)
+	bet_bytes = append(bet_bytes, writeDynamicField(bet.FirstName)...)
+	bet_bytes = append(bet_bytes, writeDynamicField(bet.LastName)...)
 
-	return representationBetBytes
+	return bet_bytes
 }
 
 func writeDynamicField(field string) []byte {
@@ -53,35 +53,35 @@ func writeDynamicField(field string) []byte {
 }
 
 // Deserializes a byte array to a bet
-func deserializeBet(representationBetBytes []byte) (model.Bet, error) {
+func deserializeBet(bet_bytes []byte) (model.Bet, error) {
 
 	//se sabe que como minimo necesitamos tener el tamaño de los campos fijos para poder deserializar
-	if len(representationBetBytes) < AMOUNT_BYTES_CONST {
+	if len(bet_bytes) < AMOUNT_BYTES_CONST {
 		return model.Bet{}, errors.New("data too short to deserialize a bet") //TODO: hacer tipos errores
 	}
 
 	position := 0
 
 	//TODO: modularizar
-	agencyId := int32(binary.BigEndian.Uint32(representationBetBytes[position : position+AMOUNT_BYTES_UINT32]))
+	agencyId := int32(binary.BigEndian.Uint32(bet_bytes[position : position+AMOUNT_BYTES_UINT32]))
 	position += AMOUNT_BYTES_UINT32
 
-	document := int32(binary.BigEndian.Uint32(representationBetBytes[position : position+AMOUNT_BYTES_UINT32]))
+	document := int32(binary.BigEndian.Uint32(bet_bytes[position : position+AMOUNT_BYTES_UINT32]))
 	position += AMOUNT_BYTES_UINT32
 
-	number := int32(binary.BigEndian.Uint32(representationBetBytes[position : position+AMOUNT_BYTES_UINT32]))
+	number := int32(binary.BigEndian.Uint32(bet_bytes[position : position+AMOUNT_BYTES_UINT32]))
 	position += AMOUNT_BYTES_UINT32
 
-	birthdate := string(representationBetBytes[position : position+BIRTHDATE_LENGTH])
+	birthdate := string(bet_bytes[position : position+BIRTHDATE_LENGTH])
 	position += BIRTHDATE_LENGTH
 
-	firstName, newPosition, err := readDynamicField(representationBetBytes, position)
+	firstName, newPosition, err := readDynamicField(bet_bytes, position)
 	if err != nil {
 		return model.Bet{}, err
 	}
 	position = newPosition
 
-	lastName, _, err := readDynamicField(representationBetBytes, position)
+	lastName, _, err := readDynamicField(bet_bytes, position)
 	if err != nil {
 		return model.Bet{}, err
 	}

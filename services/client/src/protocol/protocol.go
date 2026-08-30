@@ -114,7 +114,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 		}
 	}
 	if headerBuffer[0] != byte(MESSAGE_TYPE_END) {
-		logger.Error("recv-response", logger.Fail) //TODO
+		logger.Error("recv-response", logger.Fail, "unexpected-message-type") //TODO
 		return nil, errors.New("unexpected message type received")
 	}
 
