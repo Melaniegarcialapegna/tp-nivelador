@@ -1,4 +1,6 @@
 
+from src_frozen import Bet 
+
 AMOUNT_BYTES_UINT32 = 4 #TODO : cambiar xd
 AMOUNT_BYTES_UINT16 = 2 #TODO : cambiar xd
 BIRTHDATE_LENGTH = 10 #YYYY-MM-DD
@@ -8,10 +10,26 @@ AMOUNT_BYTES_CONST = AMOUNT_BYTES_UINT32 + AMOUNT_BYTES_UINT32 + AMOUNT_BYTES_UI
 # For the fields that are dinamic in size, will be used a separator to know how many bytes to read for each field
 # like long_dinamic_field_i|dinamic_field_i|
 def serialize_bet(bet: Bet) -> bytes:
-    return 
+    #pongo los campos fijos
+    bet_bytes = bet.agency_id.to_bytes(AMOUNT_BYTES_UINT32, byteorder='big')
+    bet_bytes += bet.document.to_bytes(AMOUNT_BYTES_UINT32, byteorder='big')
+    bet_bytes += bet.number.to_bytes(AMOUNT_BYTES_UINT32, byteorder='big')
+    bet_bytes += str(bet.birthdate).encode('utf-8')
 
-def write_dynamic_field(): 
-    return 
+    #pongo los campos dinmicos
+    bet_bytes += get_dynamic_field(bet.first_name)
+    bet_bytes += get_dynamic_field(bet.last_name)
+
+    return bet_bytes
+
+def get_dynamic_field(field: str) -> bytes:
+    #campos en bytes
+    field_bytes = field.encode('utf-8')
+    #longitud campo
+    field_length = len(field_bytes)
+    field_length_bytes = field_length.to_bytes(AMOUNT_BYTES_UINT16, byteorder='big')
+
+    return field_length_bytes + field_bytes
 
 #Deserializes a byte array to a bet
 def deserialize_bet(bet_bytes: bytes) -> Bet:

@@ -34,13 +34,13 @@ func serializeBet(bet model.Bet) []byte {
 	bet_bytes = append(bet_bytes, birthdateBytes...)
 
 	//pongo a los campos dinamicos que van con header longitud
-	bet_bytes = append(bet_bytes, writeDynamicField(bet.FirstName)...)
-	bet_bytes = append(bet_bytes, writeDynamicField(bet.LastName)...)
+	bet_bytes = append(bet_bytes, getDynamicField(bet.FirstName)...)
+	bet_bytes = append(bet_bytes, getDynamicField(bet.LastName)...)
 
 	return bet_bytes
 }
 
-func writeDynamicField(field string) []byte {
+func getDynamicField(field string) []byte {
 	//campo en bytes
 	fieldBytes := []byte(field)
 

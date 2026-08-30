@@ -26,10 +26,11 @@ const (
 
 // serializa apuesta, le agrega header y manda por socket
 func SendBet(socket io.Writer, bet model.Bet) error {
+	betMessage := make([]byte, 0)
 	payloadBet := serializeBet(bet) //internamente maneja los campos dinamicos
 	header := createHeader(len(payloadBet))
 
-	betMessage := append(header, payloadBet...)
+	betMessage = append(header, payloadBet...)
 
 	//paso a siguiente capa
 	if err := safe_socket.SendAll(socket, betMessage); err != nil {

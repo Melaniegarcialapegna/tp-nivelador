@@ -1,7 +1,6 @@
 import safe_socket
 import logger  
-from src_frozen import Bet 
-import protocol
+from protocol import deserialize_bet, serialize_bet
 
 MESSAGE_TYPE_BET = 0 # hay una apuesta/ganador
 MESSAGE_TYPE_END = 1 #termino de enviar apuestas/ganadores
@@ -24,7 +23,7 @@ def receive_bets(socket) -> list:
             bet_bytes = safe_socket.recv_all(socket, lenght_payload) 
 
             #convierto a bet y agrego a lista de bets
-            bet = protocol.deserialize_bet(bet_bytes) 
+            bet = deserialize_bet(bet_bytes) 
 
             bets.append(bet) 
 
@@ -39,7 +38,17 @@ def receive_bets(socket) -> list:
         logger.error("receive-bets", logger.LogResult.fail, "exception", str(e))
         raise e
 
-#def send_winner_bet(socket, winner_bet):
+def send_winner_bet(socket, winner_bet):
+    payloadBet = serialize_bet(winner_bet)
+    header = createHeader(len(payloadBet))
+
+    betMessage = header + payloadBet
+    safe_socket.send_all(socket, betMessage)
+
+def createHeader(payload_length: int) -> bytes:
+    message_type = bytes([MESSAGE_TYPE_BET])
+    length_bytes = payload_length.to_bytes(AMOUNT_BYTES_UINT32, byteorder='big')
+    return message_type + length_bytes
 
 def send_end(socket):
     message_end = bytes([MESSAGE_TYPE_END]) + (0).to_bytes(AMOUNT_BYTES_UINT32, byteorder='big')
