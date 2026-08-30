@@ -48,7 +48,7 @@ def deserialize_bet(bet_bytes: bytes) -> Bet:
     number = int.from_bytes(bet_bytes[position:position + AMOUNT_BYTES_UINT32], byteorder='big')
     position += AMOUNT_BYTES_UINT32
 
-    birthdate = str(bet_bytes[position:position + BIRTHDATE_LENGTH])
+    birthdate = bet_bytes[position:position + BIRTHDATE_LENGTH].decode('utf-8')
     position += BIRTHDATE_LENGTH
 
     first_name, newPosition = read_dynamic_field(bet_bytes, position)
@@ -56,7 +56,13 @@ def deserialize_bet(bet_bytes: bytes) -> Bet:
 
     last_name, newPosition = read_dynamic_field(bet_bytes, position)
 
-    return Bet(agency_id, document, number, birthdate, first_name, last_name)
+    return Bet(
+        agency_id=agency_id,
+        first_name=first_name,
+        last_name=last_name,
+        document=document,
+        birthdate=birthdate,
+        number=number)
 
 
 def read_dynamic_field(bet_bytes: bytes, position: int) -> (str, int):
@@ -69,7 +75,7 @@ def read_dynamic_field(bet_bytes: bytes, position: int) -> (str, int):
     if position + length > len(bet_bytes):
         raise ValueError("Data is too short to contain the dynamic field")
 
-    field = str(bet_bytes[position:position + length])
+    field = bet_bytes[position:position + length].decode('utf-8')
     position += length
 
     return field, position

@@ -1,6 +1,6 @@
 import safe_socket
 import logger  
-from protocol import deserialize_bet, serialize_bet
+from .serialization import deserialize_bet, serialize_bet
 
 MESSAGE_TYPE_BET = 0 # hay una apuesta/ganador
 MESSAGE_TYPE_END = 1 #termino de enviar apuestas/ganadores

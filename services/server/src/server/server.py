@@ -40,7 +40,7 @@ class Server:
             winners_bets = []
 
             for bet in self.lottery.load_bets():
-                if bet.agency_id == agency_id and self.lottery.is_winner(bet):
+                if bet.agency_id == agency_id and self.lottery.has_won(bet):
                     winners_bets.append(bet)
 
             for winner_bet in winners_bets:
