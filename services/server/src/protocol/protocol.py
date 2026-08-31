@@ -15,17 +15,18 @@ def receive_bets(socket) -> list:
     #action = "receive-bets" VER 
     #misma idea de ReceiveWinners
     try: 
-        bets = []
+        
         header_buffer = safe_socket.recv_all(socket, HEADER_AMOUNT) #recibo header
         while header_buffer[0] == MESSAGE_TYPE_BET: 
             lenght_payload = int.from_bytes(header_buffer[TYPE_AMOUNT:HEADER_AMOUNT], byteorder='big') 
 
             bet_bytes = safe_socket.recv_all(socket, lenght_payload) 
 
-            #convierto a bet y agrego a lista de bets
+            #convierto a bet 
             bet = deserialize_bet(bet_bytes) 
 
-            bets.append(bet) 
+            #entrego a proxima capa
+            yield bet
 
             header_buffer = safe_socket.recv_all(socket, HEADER_AMOUNT) 
 
@@ -33,7 +34,6 @@ def receive_bets(socket) -> list:
             logger.error("receive-bets", logger.LogResult.fail, "unexpected-message-type")
             raise Exception("Unexpected message type received") 
 
-        return bets
     except Exception as e:
         logger.error("receive-bets", logger.LogResult.fail, "exception", str(e))
         raise e

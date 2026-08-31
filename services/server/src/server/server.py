@@ -30,12 +30,16 @@ class Server:
         try:
             logger.info(action, logger.LogResult.in_progress)
 
-            # recibe bets y las persiste
-            bets = protocol.receive_bets(client_socket)
-            self.lottery.store_bets(bets)
-
+            primera = True
+            bet_modelo = None
+            # va recibiendo y persistiendo las bets
+            for bet in protocol.receive_bets(client_socket):
+                self.lottery.store_bets([bet])
+                if primera:
+                    bet_modelo = bet
+                    primera = False
             #calcula ganadores de esta agencia y los envia
-            agency_id = bets[0].agency_id if bets else None
+            agency_id = bet_modelo.agency_id if bet_modelo else None
 
             winners_bets = []
 
