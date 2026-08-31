@@ -34,12 +34,11 @@ CLIENT_CONTENT = """
       - SERVER_PORT=5678
       - INPUT_FILE=/input/input-{i}.csv
       - OUTPUT_FILE=/output/output-{i}.csv
-      - BATCH_SIZE=5
+      - BATCH_SIZE={j}
     volumes:
       - ./input:/input
       - ./output:/output
 """
-#TODO : poner a- BATCH_SIZE={i} o algo asi xd
 
 def main():
     number_of_clients = parse_number_of_clients()
@@ -71,11 +70,11 @@ def parse_number_of_clients():
 
     return number_of_clients
 
-def generate_docker_compose(number_of_clients):
+def generate_docker_compose(number_of_clients, batch_size=5):
     file_content = ""
     file_content += SERVER_CONTENT
     for i in range (number_of_clients):
-        file_content+=CLIENT_CONTENT.format(i=i)
+        file_content+=CLIENT_CONTENT.format(i=i,j=batch_size)
 
     file_content = file_content.rstrip()
 

@@ -3,68 +3,95 @@ import logger
 import protocol
 from lottery import Lottery
 
+
+ACTION_ACEPT_CONNECTION = "accept-connection"
+ACTION_HANDLE_CLIENT = "handle-client"
+
 class Server:
     def __init__(self, server_host: str, server_port: int,storage_path: str) -> None:
         self.server_host = server_host
         self.server_port = server_port
-        self.lottery = Lottery(storage_path) #compartida para todos los clientes 
+        self.lottery = Lottery(storage_path) # shared with all the clients
 
     def run(self):
-        action = "accept-connection"
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.bind((self.server_host, self.server_port))
             server_socket.listen()
             while True:
-                try:
-                    logger.info(action, logger.LogResult.in_progress)
-                    client_socket, _ = server_socket.accept()
-                except Exception as e:
-                    logger.error(action, logger.LogResult.fail)
-                    raise e
-                logger.info(action, logger.LogResult.success)
-
+                client_socket = self._accept_connection(server_socket)
                 self._handle_client(client_socket)
 
-    def _handle_client(self, client_socket):
-        action = "handle-client"
+    def _accept_connection(self, server_socket):
+        logger.info(ACTION_ACEPT_CONNECTION, logger.LogResult.in_progress)
+
         try:
-            logger.info(action, logger.LogResult.in_progress)
+            client_socket, _ = server_socket.accept()
+        except Exception as error:
+            logger.error(ACTION_ACEPT_CONNECTION, logger.LogResult.fail, "err", error)
+            raise error
+        
+        logger.info(ACTION_ACEPT_CONNECTION, logger.LogResult.success)
+        return client_socket
+        
 
-            primera = True
-            bet_model = None
-            # va recibiendo y persistiendo las bets
-            
-            try:
-                for bets_batch in protocol.receive_bets(client_socket):
-                    self.lottery.store_bets(bets_batch)
-                    if primera:
-                        bet_model = bets_batch[0] if bets_batch else None
-                        primera = False
-                    protocol.send_batch_ack(client_socket, success=True)
-            except Exception as e:
-                protocol.send_batch_ack(client_socket, success=False)
-                logger.error(action, logger.LogResult.fail, "err", e)
-                raise e
+    def _handle_client(self, client_socket):
+        try:
+            logger.info(ACTION_HANDLE_CLIENT, logger.LogResult.in_progress)
+
+            first_batch = self._store_bets(client_socket)
+            agency_id = self._agency_id_from(first_batch)
                 
-            #calcula ganadores de esta agencia y los envia
-            agency_id = bet_model.agency_id if bet_model else None
+            winners_bets = self._winners_for_agency(agency_id)
 
-            winners_bets = []
+            self._send_winners_bets(client_socket, winners_bets)
+            self._send_end_of_sending(client_socket)
 
-            for bet in self.lottery.load_bets():
-                if bet.agency_id == agency_id and self.lottery.has_won(bet):
-                    winners_bets.append(bet)
+            logger.info(ACTION_HANDLE_CLIENT, logger.LogResult.success)    
 
-            for winner_bet in winners_bets:
-                protocol.send_winner_bet(client_socket, winner_bet) 
+        except Exception as error:
+            logger.error(ACTION_HANDLE_CLIENT, logger.LogResult.fail,"err", error)
+            raise error
 
-            #aviso que termine
-            protocol.send_end(client_socket)
+    def _store_bets(self, client_socket):
+        """
+        Receives bets from the client and stores them in the lottery. 
+        Returns the first batch of bets received.
+        """
+        try:
+            for i, bets_batch in enumerate(protocol.receive_bets(client_socket)):
+                self.lottery.store_bets(bets_batch)
+                if i == 0:
+                    first_batch = bets_batch
+                self._send_batch_success(client_socket)
 
-            logger.info(action, logger.LogResult.success)    
+        except Exception as error:
+            self._send_batch_failure(client_socket)
+            logger.error(ACTION_HANDLE_CLIENT, logger.LogResult.fail, "err", error)
+            raise error
 
-        except Exception as e:
-            logger.error(
-                action, logger.LogResult.fail
-            )
-            raise e
+        return first_batch
+
+    def _send_batch_success(self, client_socket):
+        protocol.send_batch_ack(client_socket, success=True)
+
+    def _send_batch_failure(self, client_socket):
+        protocol.send_batch_ack(client_socket, success=False)
+
+    def _agency_id_from(self, bets_batch):
+        return bets_batch[0].agency_id if bets_batch else None
+
+    def _winners_for_agency(self, agency_id: str):
+        winners_bets = []
+
+        for bet in self.lottery.load_bets():
+            if bet.agency_id == agency_id and self.lottery.has_won(bet):
+                winners_bets.append(bet)
+
+        return winners_bets
+
+    def _send_winners_bets(self, client_socket, winners_bets):
+        for winner_bet in winners_bets:
+            protocol.send_winner_bet(client_socket, winner_bet)
+
+    def _send_end_of_sending(self, client_socket):
+        protocol.send_end(client_socket)
