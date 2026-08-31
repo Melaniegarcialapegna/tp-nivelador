@@ -15,9 +15,10 @@ SERVER_CONTENT = """services:
       - PYTHONUNBUFFERED=1
       - SERVER_HOST=server
       - SERVER_PORT=5678
+      - SERVER_STORAGE_PATH=/output/bets_storage.csv
+    volumes:
+      - ./output:/output
 """
-#TODO actulizar!!
-
  
 CLIENT_CONTENT = """
   client_{i}:

@@ -10,9 +10,9 @@ services:
       - PYTHONUNBUFFERED=1
       - SERVER_HOST=server
       - SERVER_PORT=5678
-      - SERVER_STORAGE_PATH=/storage/bets_storage.csv
+      - SERVER_STORAGE_PATH=/output/bets_storage.csv
     volumes:
-      - ./storage:/storage
+      - ./output:/output
 
   client_0:
     build:
