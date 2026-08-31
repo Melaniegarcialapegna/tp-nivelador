@@ -1,7 +1,7 @@
 import socket
 import logger
 import protocol
-from src_frozen import Lottery
+from lottery import Lottery
 
 class Server:
     def __init__(self, server_host: str, server_port: int,storage_path: str) -> None:

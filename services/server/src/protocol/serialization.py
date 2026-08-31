@@ -1,5 +1,5 @@
 
-from src_frozen import Bet 
+from lottery import Bet 
 
 AMOUNT_BYTES_UINT32 = 4 #TODO : cambiar xd
 AMOUNT_BYTES_UINT16 = 2 #TODO : cambiar xd

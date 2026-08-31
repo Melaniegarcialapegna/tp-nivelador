@@ -86,7 +86,7 @@ func (client *Client) Run() error {
 	for scanner.Scan() {
 		lineBet := scanner.Text()
 		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
-		logger.Info(mainAction, logger.InProgress, messageArgs...)
+		// logger.Info(mainAction, logger.InProgress, messageArgs...)
 
 		//Armo Bet
 		//TODO : Modularizar todo xd
