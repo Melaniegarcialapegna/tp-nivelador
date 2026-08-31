@@ -20,8 +20,10 @@ const HEADER_AMOUNT = 5
 
 // ctes de protocolo
 const (
-	MESSAGE_TYPE_BET = 0 // hay una apuesta/ganador
-	MESSAGE_TYPE_END = 1 // termino de enviar
+	MESSAGE_TYPE_BET      = 0 // hay una apuesta/ganador
+	MESSAGE_TYPE_END      = 1 // termino de enviar
+	MESSAGE_TYPE_ACK_OK   = 2 //ack de recepcion correcta
+	MESSAGE_TYPE_ACK_FAIL = 3 //ack de recepcion con error
 )
 
 // serializa apuesta, le agrega header y manda por socket
@@ -63,6 +65,21 @@ func createHeader(payloadSize int) []byte {
 	header = append(header, payloadSizeBytes...)
 
 	return header
+}
+
+func ReceiveAck(socket io.Reader) (bool, error) {
+	message, err := safe_socket.RecvAll(socket, AMOUNT_BYTES_UINT8)
+	if err != nil {
+		logger.Error("recv-ack", logger.Fail) //TODO: ver que mas agregarle al log y si es correcto ponerlo aca o con la capa de arriba basta xd
+		return false, err
+	}
+	if message[0] == byte(MESSAGE_TYPE_ACK_OK) {
+		return true, nil
+	}
+	if message[0] == byte(MESSAGE_TYPE_ACK_FAIL) {
+		return false, nil
+	}
+	return false, errors.New("unexpected message type received")
 }
 
 // avisa que no se van a mandar mas apuestas

@@ -33,11 +33,19 @@ class Server:
             primera = True
             bet_modelo = None
             # va recibiendo y persistiendo las bets
-            for bets_batch in protocol.receive_bets(client_socket):
-                self.lottery.store_bets(bets_batch)
-                if primera:
-                    bet_modelo = bets_batch[0] if bets_batch else None
-                    primera = False
+            
+            try:
+                for bets_batch in protocol.receive_bets(client_socket):
+                    self.lottery.store_bets(bets_batch)
+                    if primera:
+                        bet_modelo = bets_batch[0] if bets_batch else None
+                        primera = False
+                    protocol.send_batch_ack(client_socket, success=True)
+            except Exception as e:
+                protocol.send_batch_ack(client_socket, success=False)
+                logger.error(action, logger.LogResult.fail, "exception", str(e))
+                raise e
+                
             #calcula ganadores de esta agencia y los envia
             agency_id = bet_modelo.agency_id if bet_modelo else None
 

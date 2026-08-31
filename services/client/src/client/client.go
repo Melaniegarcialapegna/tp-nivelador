@@ -130,6 +130,19 @@ func (client *Client) Run() error {
 				logger.Error("send-bet", logger.Fail, messageArgs...)
 				return err
 			}
+
+			//espera el ack del server
+			success, err := protocol.ReceiveAck(client.conn)
+
+			if !success {
+				logger.Error("receive-ack", logger.Fail, messageArgs...)
+				return err
+			}
+			if err != nil {
+				logger.Error("receive-ack", logger.Fail, messageArgs...)
+				return err
+			}
+
 			batch = batch[:0]
 		}
 
@@ -147,6 +160,18 @@ func (client *Client) Run() error {
 	if len(batch) > 0 {
 		if err := protocol.SendBetBatch(client.conn, batch); err != nil {
 			logger.Error("send-bet", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+			return err
+		}
+
+		//espera el ack del server
+		success, err := protocol.ReceiveAck(client.conn)
+
+		if !success {
+			logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+			return err
+		}
+		if err != nil {
+			logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 			return err
 		}
 	}

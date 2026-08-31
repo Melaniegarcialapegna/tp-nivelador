@@ -6,6 +6,8 @@ from lottery import Lottery
 
 MESSAGE_TYPE_BET = 0 # hay una apuesta/ganador
 MESSAGE_TYPE_END = 1 #termino de enviar apuestas/ganadores
+MESSAGE_TYPE_ACK_OK = 2 #ack de recepcion correcta
+MESSAGE_TYPE_ACK_FAIL = 3 #ack de recepcion con error
 
 
 MESSAGE_TYPE_BET = 0
@@ -13,6 +15,7 @@ HEADER_AMOUNT = 5
 TYPE_AMOUNT = 1
 AMOUNT_BYTES_UINT32 = 4 #TODO : cambiar
 AMOUNT_BYTES_UINT16 = 2 #TODO : cambiar
+AMOUNT_BYTES_UINT8 = 1 #TODO : cambiar
 
 def receive_bets(socket) -> Iterator[list[Bet]]:
     #action = "receive-bets" VER 
@@ -61,7 +64,12 @@ def separate_bets(batch_bytes: bytes) -> Iterator[bytes]:
         yield bet_bytes #retorno para que vaya siendo procesada
 
         position += length_bet    
-        
+
+
+def send_batch_ack(socket,success):
+    message_type = MESSAGE_TYPE_ACK_OK if success else MESSAGE_TYPE_ACK_FAIL
+    ack_message = (message_type).to_bytes(AMOUNT_BYTES_UINT8, byteorder='big')
+    safe_socket.send_all(socket, ack_message)
 
 def send_winner_bet(socket, winner_bet):
     payloadBet = serialize_bet(winner_bet)
