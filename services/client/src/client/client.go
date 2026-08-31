@@ -22,6 +22,7 @@ type ClientConfig struct {
 	AgencyId   string
 	InputFile  string
 	OutputFile string
+	BatchSize  int
 }
 
 type Client struct {
@@ -83,6 +84,8 @@ func (client *Client) Run() error {
 
 	messageId := 0
 
+	batch := make([]model.Bet, 0, client.config.BatchSize)
+
 	for scanner.Scan() {
 		lineBet := scanner.Text()
 		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
@@ -119,10 +122,15 @@ func (client *Client) Run() error {
 			Number:    int32(number),
 		}
 
-		//Se le pasa al protocolo para que lo envie
-		if err := protocol.SendBet(client.conn, bet); err != nil {
-			logger.Error("send-bet", logger.Fail, messageArgs...)
-			return err
+		batch = append(batch, bet)
+
+		if len(batch) == client.config.BatchSize {
+			//Se le pasa al protocolo para que lo envie
+			if err := protocol.SendBetBatch(client.conn, batch); err != nil {
+				logger.Error("send-bet", logger.Fail, messageArgs...)
+				return err
+			}
+			batch = batch[:0]
 		}
 
 		messageId++
@@ -133,6 +141,14 @@ func (client *Client) Run() error {
 		//TODO : sacar codigo rep del "agency-id y error"
 		logger.Error("read-input-file", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
+	}
+
+	//Si quedaron apuestas en el batch que no se enviaron porque no se lleno el batch
+	if len(batch) > 0 {
+		if err := protocol.SendBetBatch(client.conn, batch); err != nil {
+			logger.Error("send-bet", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+			return err
+		}
 	}
 
 	//Se le avisa al protocolo que no se van a mandar mas apuestas

@@ -25,15 +25,26 @@ const (
 )
 
 // serializa apuesta, le agrega header y manda por socket
-func SendBet(socket io.Writer, bet model.Bet) error {
-	betMessage := make([]byte, 0)
-	payloadBet := serializeBet(bet) //internamente maneja los campos dinamicos
-	header := createHeader(len(payloadBet))
+func SendBetBatch(socket io.Writer, bets []model.Bet) error {
+	betsMessage := make([]byte, 0)
+	for _, bet := range bets {
+		//TODO: modularizar
+		betBytes := serializeBet(bet) //internamente maneja los campos dinamicos
+		lenhgtBetBytes := make([]byte, AMOUNT_BYTES_UINT32)
+		binary.BigEndian.PutUint32(lenhgtBetBytes, uint32(len(betBytes)))
+		betsMessage = append(betsMessage, lenhgtBetBytes...)
+		betsMessage = append(betsMessage, betBytes...)
+	}
 
-	betMessage = append(header, payloadBet...)
+	batchMessage := make([]byte, 0)
+
+	header := createHeader(len(betsMessage))
+
+	batchMessage = append(batchMessage, header...)
+	batchMessage = append(batchMessage, betsMessage...)
 
 	//paso a siguiente capa
-	if err := safe_socket.SendAll(socket, betMessage); err != nil {
+	if err := safe_socket.SendAll(socket, batchMessage); err != nil {
 		logger.Error("send-message", logger.Fail) //TODO: ver que mas agregarle al log y si es correcto ponerlo aca o con la capa de arriba basta xd
 		return err
 	}

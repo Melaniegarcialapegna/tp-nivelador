@@ -33,10 +33,10 @@ class Server:
             primera = True
             bet_modelo = None
             # va recibiendo y persistiendo las bets
-            for bet in protocol.receive_bets(client_socket):
-                self.lottery.store_bets([bet])
+            for bets_batch in protocol.receive_bets(client_socket):
+                self.lottery.store_bets(bets_batch)
                 if primera:
-                    bet_modelo = bet
+                    bet_modelo = bets_batch[0] if bets_batch else None
                     primera = False
             #calcula ganadores de esta agencia y los envia
             agency_id = bet_modelo.agency_id if bet_modelo else None

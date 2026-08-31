@@ -1,6 +1,8 @@
 import safe_socket
 import logger  
 from .serialization import deserialize_bet, serialize_bet
+from collections.abc import Iterator
+from lottery import Lottery
 
 MESSAGE_TYPE_BET = 0 # hay una apuesta/ganador
 MESSAGE_TYPE_END = 1 #termino de enviar apuestas/ganadores
@@ -10,23 +12,26 @@ MESSAGE_TYPE_BET = 0
 HEADER_AMOUNT = 5
 TYPE_AMOUNT = 1
 AMOUNT_BYTES_UINT32 = 4 #TODO : cambiar
+AMOUNT_BYTES_UINT16 = 2 #TODO : cambiar
 
-def receive_bets(socket) -> list:
+def receive_bets(socket) -> Iterator[list[Bet]]:
     #action = "receive-bets" VER 
     #misma idea de ReceiveWinners
     try: 
         
         header_buffer = safe_socket.recv_all(socket, HEADER_AMOUNT) #recibo header
         while header_buffer[0] == MESSAGE_TYPE_BET: 
-            lenght_payload = int.from_bytes(header_buffer[TYPE_AMOUNT:HEADER_AMOUNT], byteorder='big') 
+            lenght_payload = int.from_bytes(header_buffer[TYPE_AMOUNT:HEADER_AMOUNT], byteorder='big')
 
-            bet_bytes = safe_socket.recv_all(socket, lenght_payload) 
-
-            #convierto a bet 
-            bet = deserialize_bet(bet_bytes) 
-
+            batch_bytes = safe_socket.recv_all(socket, lenght_payload) 
+            batch_bets = []
+            for bet_bytes in separate_bets(batch_bytes):
+                #convierto a bet 
+                bet = deserialize_bet(bet_bytes) 
+                bet = deserialize_bet(bet_bytes) 
+                batch_bets.append(bet)
             #entrego a proxima capa
-            yield bet
+            yield batch_bets
 
             header_buffer = safe_socket.recv_all(socket, HEADER_AMOUNT) 
 
@@ -37,6 +42,26 @@ def receive_bets(socket) -> list:
     except Exception as e:
         logger.error("receive-bets", logger.LogResult.fail, "exception", str(e))
         raise e
+
+def separate_bets(batch_bytes: bytes) -> Iterator[bytes]:
+    position = 0
+
+    while position < len(batch_bytes):
+        if position + AMOUNT_BYTES_UINT32 > len(batch_bytes):
+            raise ValueError("Data too short to know the length of the next bet")
+        
+        length_bet = int.from_bytes(batch_bytes[position:position + AMOUNT_BYTES_UINT32], byteorder='big')
+
+        position += AMOUNT_BYTES_UINT32
+
+        if position + length_bet > len(batch_bytes):
+            raise ValueError("Data too short for a bet")
+        
+        bet_bytes = batch_bytes[position:position + length_bet]
+        yield bet_bytes #retorno para que vaya siendo procesada
+
+        position += length_bet    
+        
 
 def send_winner_bet(socket, winner_bet):
     payloadBet = serialize_bet(winner_bet)
