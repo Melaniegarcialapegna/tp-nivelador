@@ -11,37 +11,34 @@ import (
 // For the fields that are dinamic in size, will be used a separator to know how many bytes to read for each field
 // like long_dinamic_field_i|dinamic_field_i|
 func serializeBet(bet model.Bet) []byte {
-	bet_bytes := make([]byte, 0)
+	betBytes := make([]byte, 0)
 
-	//pongo a los campos fijos que van directo
-	//TODO: modularizar
-	agencyIdBytes := make([]byte, FIXED_FIELDS_SIZE_BYTES)
-	binary.BigEndian.PutUint32(agencyIdBytes, uint32(bet.AgencyId))
-	bet_bytes = append(bet_bytes, agencyIdBytes...)
-
-	documentBytes := make([]byte, FIXED_FIELDS_SIZE_BYTES)
-	binary.BigEndian.PutUint32(documentBytes, uint32(bet.Document))
-	bet_bytes = append(bet_bytes, documentBytes...)
-
-	numberBytes := make([]byte, FIXED_FIELDS_SIZE_BYTES)
-	binary.BigEndian.PutUint32(numberBytes, uint32(bet.Number))
-	bet_bytes = append(bet_bytes, numberBytes...)
+	//put fixed fields
+	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.AgencyId))...)
+	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.Document))...)
+	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.Number))...)
 
 	birthdateBytes := []byte(bet.Birthdate)
-	bet_bytes = append(bet_bytes, birthdateBytes...)
+	betBytes = append(betBytes, birthdateBytes...)
 
-	//pongo a los campos dinamicos que van con header longitud
-	bet_bytes = append(bet_bytes, getDynamicField(bet.FirstName)...)
-	bet_bytes = append(bet_bytes, getDynamicField(bet.LastName)...)
+	//put dinamic fields that have a length prefix
+	betBytes = append(betBytes, getDynamicField(bet.FirstName)...)
+	betBytes = append(betBytes, getDynamicField(bet.LastName)...)
 
-	return bet_bytes
+	return betBytes
+}
+
+func getFieldBytesForUint21(field uint32) []byte {
+	fieldBytes := make([]byte, FIXED_FIELDS_SIZE_BYTES)
+	binary.BigEndian.PutUint32(fieldBytes, field)
+	return fieldBytes
 }
 
 func getDynamicField(field string) []byte {
-	//campo en bytes
+	//field in bytes
 	fieldBytes := []byte(field)
 
-	//longitud campo en bytes
+	//length of the field in bytes
 	lengthFieldBytes := make([]byte, DYNAMIC_FIELD_LENGTH_SIZE_BYTES)
 	binary.BigEndian.PutUint16(lengthFieldBytes, uint16(len(fieldBytes)))
 
@@ -50,35 +47,26 @@ func getDynamicField(field string) []byte {
 }
 
 // Deserializes a byte array to a bet
-func deserializeBet(bet_bytes []byte) (model.Bet, error) {
-
-	//se sabe que como minimo necesitamos tener el tamaño de los campos fijos para poder deserializar
-	if len(bet_bytes) < AMOUNT_BYTES_CONST {
+func deserializeBet(betBytes []byte) (model.Bet, error) {
+	if len(betBytes) < AMOUNT_BYTES_CONST {
 		return model.Bet{}, errors.New("data too short to deserialize a bet") //TODO: hacer tipos errores
 	}
 
 	position := 0
 
-	//TODO: modularizar
-	agencyId := int32(binary.BigEndian.Uint32(bet_bytes[position : position+FIXED_FIELDS_SIZE_BYTES]))
-	position += FIXED_FIELDS_SIZE_BYTES
+	agencyId, position := getInt32FromBytes(betBytes, position)
+	document, position := getInt32FromBytes(betBytes, position)
+	number, position := getInt32FromBytes(betBytes, position)
 
-	document := int32(binary.BigEndian.Uint32(bet_bytes[position : position+FIXED_FIELDS_SIZE_BYTES]))
-	position += FIXED_FIELDS_SIZE_BYTES
-
-	number := int32(binary.BigEndian.Uint32(bet_bytes[position : position+FIXED_FIELDS_SIZE_BYTES]))
-	position += FIXED_FIELDS_SIZE_BYTES
-
-	birthdate := string(bet_bytes[position : position+BIRTHDATE_LENGTH])
+	birthdate := string(betBytes[position : position+BIRTHDATE_LENGTH])
 	position += BIRTHDATE_LENGTH
 
-	firstName, newPosition, err := readDynamicField(bet_bytes, position)
+	firstName, position, err := readDynamicField(betBytes, position)
 	if err != nil {
 		return model.Bet{}, err
 	}
-	position = newPosition
 
-	lastName, _, err := readDynamicField(bet_bytes, position)
+	lastName, _, err := readDynamicField(betBytes, position)
 	if err != nil {
 		return model.Bet{}, err
 	}
@@ -94,22 +82,25 @@ func deserializeBet(bet_bytes []byte) (model.Bet, error) {
 
 }
 
-func readDynamicField(bet_bytes []byte, position int) (string, int, error) {
-	if position+DYNAMIC_FIELD_LENGTH_SIZE_BYTES > len(bet_bytes) {
+func getInt32FromBytes(bytes []byte, position int) (int32, int) {
+	return int32(binary.BigEndian.Uint32(bytes[position : position+FIXED_FIELDS_SIZE_BYTES])), position + FIXED_FIELDS_SIZE_BYTES
+}
+
+func readDynamicField(betBytes []byte, position int) (string, int, error) {
+	if position+DYNAMIC_FIELD_LENGTH_SIZE_BYTES > len(betBytes) {
 		return "", 0, errors.New("data is too short to contain field length")
 	}
 
-	//lee el largo de el str dinamico
-	length := int(binary.BigEndian.Uint16(bet_bytes[position : position+DYNAMIC_FIELD_LENGTH_SIZE_BYTES]))
+	//read the length of the dynamic field
+	length := int(binary.BigEndian.Uint16(betBytes[position : position+DYNAMIC_FIELD_LENGTH_SIZE_BYTES]))
 	position += DYNAMIC_FIELD_LENGTH_SIZE_BYTES
 
-	//chequea si el largo es valido
-	if position+length > len(bet_bytes) {
+	if position+length > len(betBytes) {
 		return "", 0, errors.New("data is too short to contain the dynamic field")
 	}
 
-	//le el campo dinamico
-	field := string(bet_bytes[position : position+length])
+	//read the dynamic field based on the length
+	field := string(betBytes[position : position+length])
 	position += length
 
 	return field, position, nil
