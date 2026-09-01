@@ -20,6 +20,8 @@ LENGTH_FIELD_SIZE_BYTES = 4
 
 HEADER_SIZE_BYTES = TYPE_MESSAGE_SIZE_BYTES + LENGTH_FIELD_SIZE_BYTES
 
+EMPTY_MESSAGE = 0
+
 
 def receive_bets(socket) -> Iterator[list[Bet]]:
     try:  
@@ -52,22 +54,15 @@ def _length_from_header(header_buffer):
 
 def _parse_batch(bet_bytes):
     bets = []
-    for bet_bytes in separate_bets(bet_bytes):
+    for bet_bytes in _separate_bets_from(bet_bytes):
         bet = deserialize_bet(bet_bytes)
         bets.append(bet)
     return bets
 
-def _check_end_of_bets(header_buffer):
-    if header_buffer[0] != MESSAGE_TYPE_END:
-        logger.error(ACTION_RECEIVE_BETS, logger.LogResult.fail, "unexpected-message-type")
-        raise ValueError("Unexpected message type received")
-
-#--
-
-def separate_bets(batch_bytes: bytes) -> Iterator[bytes]:
+def _separate_bets_from(batch_bytes: bytes) -> Iterator[bytes]:
     position = 0
-
     while position < len(batch_bytes):
+
         if position + LENGTH_FIELD_SIZE_BYTES > len(batch_bytes):
             raise ValueError("Data too short to know the length of the next bet")
         
@@ -79,28 +74,41 @@ def separate_bets(batch_bytes: bytes) -> Iterator[bytes]:
             raise ValueError("Data too short for a bet")
         
         bet_bytes = batch_bytes[position:position + length_bet]
-        yield bet_bytes #retorno para que vaya siendo procesada
 
-        position += length_bet    
+        yield bet_bytes #return to be processed 
 
+        position += length_bet  
+
+
+def _check_end_of_bets(header_buffer):
+    if header_buffer[0] != MESSAGE_TYPE_END:
+        logger.error(ACTION_RECEIVE_BETS, logger.LogResult.fail, "unexpected-message-type")
+        raise ValueError("Unexpected message type received")
+
+#--
 
 def send_batch_ack(socket,success):
     message_type = MESSAGE_TYPE_ACK_OK if success else MESSAGE_TYPE_ACK_FAIL
     ack_message = (message_type).to_bytes(ACK_MESSAGE_SIZE_BYTES, byteorder='big')
     safe_socket.send_all(socket, ack_message)
 
+#--
+
 def send_winner_bet(socket, winner_bet):
-    payloadBet = serialize_bet(winner_bet)
-    header = createHeader(len(payloadBet))
+    bet_bytes = serialize_bet(winner_bet)
+    header = _create_header_for_bet(len(bet_bytes))
 
-    betMessage = header + payloadBet
-    safe_socket.send_all(socket, betMessage)
+    bet_message = header + bet_bytes
+    safe_socket.send_all(socket, bet_message)
 
-def createHeader(payload_length: int) -> bytes:
+def _create_header_for_bet(length_bet_bytes: int) -> bytes:
     message_type = bytes([MESSAGE_TYPE_BET])
-    length_bytes = payload_length.to_bytes(LENGTH_FIELD_SIZE_BYTES, byteorder='big')
+
+    length_bytes = length_bet_bytes.to_bytes(LENGTH_FIELD_SIZE_BYTES, byteorder='big')
     return message_type + length_bytes
 
+#--
+
 def send_end(socket):
-    message_end = bytes([MESSAGE_TYPE_END]) + (0).to_bytes(LENGTH_FIELD_SIZE_BYTES, byteorder='big')
+    message_end = bytes([MESSAGE_TYPE_END]) + (EMPTY_MESSAGE).to_bytes(LENGTH_FIELD_SIZE_BYTES, byteorder='big')
     safe_socket.send_all(socket, message_end)
