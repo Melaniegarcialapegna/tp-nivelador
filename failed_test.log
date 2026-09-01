@@ -1,18 +1,18 @@
-client_0  | 2026/08/31 23:45:43 INFO action=connect-to-server result=in-progress
-client_0  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=0
-client_0  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=1
-client_0  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=2
-client_0  | 2026/08/31 23:45:44 WARN action=connect-to-server result=fail
-client_0  | 2026/08/31 23:45:44 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
-server    | Traceback (most recent call last):
-server    |   File "//src/main.py", line 8, in <module>
-server    |     SERVER_STORAGE_PATH = os.environ["SERVER_STORAGE_PATH"]
-server    |                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-server    |   File "<frozen os>", line 709, in __getitem__
-server    | KeyError: 'SERVER_STORAGE_PATH'
-client_1  | 2026/08/31 23:45:43 INFO action=connect-to-server result=in-progress
-client_1  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=0
-client_1  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=1
-client_1  | 2026/08/31 23:45:43 WARN action=connect-to-server result=fail attempt=2
-client_1  | 2026/08/31 23:45:44 WARN action=connect-to-server result=fail
-client_1  | 2026/08/31 23:45:44 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
+server  | Traceback (most recent call last):
+server  |   File "//src/main.py", line 8, in <module>
+server  |     SERVER_STORAGE_PATH = os.environ["SERVER_STORAGE_PATH"]
+server  |                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+server  |   File "<frozen os>", line 709, in __getitem__
+server  | KeyError: 'SERVER_STORAGE_PATH'
+client_1  | 2026/09/01 00:24:37 INFO action=connect-to-server result=in-progress
+client_0  | 2026/09/01 00:24:37 INFO action=connect-to-server result=in-progress
+client_0  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=0
+client_0  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=1
+client_0  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=2
+client_0  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail
+client_1  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=0
+client_1  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=1
+client_1  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail attempt=2
+client_1  | 2026/09/01 00:24:37 WARN action=connect-to-server result=fail
+client_1  | 2026/09/01 00:24:37 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
+client_0  | 2026/09/01 00:24:37 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
