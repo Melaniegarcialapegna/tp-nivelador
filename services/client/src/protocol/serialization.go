@@ -14,9 +14,9 @@ func serializeBet(bet model.Bet) []byte {
 	betBytes := make([]byte, 0)
 
 	//put fixed fields
-	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.AgencyId))...)
-	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.Document))...)
-	betBytes = append(betBytes, getFieldBytesForUint21(uint32(bet.Number))...)
+	betBytes = append(betBytes, getFieldBytesForUint32(uint32(bet.AgencyId))...)
+	betBytes = append(betBytes, getFieldBytesForUint32(uint32(bet.Document))...)
+	betBytes = append(betBytes, getFieldBytesForUint32(uint32(bet.Number))...)
 
 	birthdateBytes := []byte(bet.Birthdate)
 	betBytes = append(betBytes, birthdateBytes...)
@@ -28,7 +28,7 @@ func serializeBet(bet model.Bet) []byte {
 	return betBytes
 }
 
-func getFieldBytesForUint21(field uint32) []byte {
+func getFieldBytesForUint32(field uint32) []byte {
 	fieldBytes := make([]byte, FIXED_FIELDS_SIZE_BYTES)
 	binary.BigEndian.PutUint32(fieldBytes, field)
 	return fieldBytes
