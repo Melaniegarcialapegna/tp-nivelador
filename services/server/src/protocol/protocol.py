@@ -27,7 +27,7 @@ def receive_bets(socket) -> Iterator[list[Bet]]:
     try:  
         header_buffer = _receive_header(socket)
 
-        while _still_receive_bets(header_buffer): 
+        while header_buffer[0] == MESSAGE_TYPE_BET: 
 
             lenght_batch = _length_from_header(header_buffer)
             batch_bytes = safe_socket.recv_all(socket, lenght_batch) 
@@ -45,9 +45,6 @@ def receive_bets(socket) -> Iterator[list[Bet]]:
 
 def _receive_header(socket):
     return safe_socket.recv_all(socket, HEADER_SIZE_BYTES)  
-
-def _still_receive_bets(header_buffer):
-    return header_buffer[0] == MESSAGE_TYPE_BET
 
 def _length_from_header(header_buffer):
     return int.from_bytes(header_buffer[TYPE_MESSAGE_SIZE_BYTES:HEADER_SIZE_BYTES], byteorder='big')

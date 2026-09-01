@@ -45,8 +45,6 @@ def deserialize_bet(bet_bytes: bytes) -> Bet:
 
     position = 0
 
-
-
     agency_id , position = _get_int_from_field(bet_bytes, position, FIXED_FIELDS_SIZE_BYTES)
     document , position = _get_int_from_field(bet_bytes, position, FIXED_FIELDS_SIZE_BYTES)
     number , position = _get_int_from_field(bet_bytes, position, FIXED_FIELDS_SIZE_BYTES)

@@ -62,20 +62,14 @@ class Server:
                 self.lottery.store_bets(bets_batch)
                 if i == 0:
                     first_batch = bets_batch
-                self._send_batch_success(client_socket)
+                protocol.send_batch_ack(client_socket, success=True)
 
         except Exception as error:
-            self._send_batch_failure(client_socket)
+            protocol.send_batch_ack(client_socket, success=False)
             logger.error(ACTION_HANDLE_CLIENT, logger.LogResult.fail, "err", error)
             raise error
 
         return first_batch
-
-    def _send_batch_success(self, client_socket):
-        protocol.send_batch_ack(client_socket, success=True)
-
-    def _send_batch_failure(self, client_socket):
-        protocol.send_batch_ack(client_socket, success=False)
 
     def _agency_id_from(self, bets_batch):
         return bets_batch[0].agency_id if bets_batch else None
