@@ -25,7 +25,7 @@ func SendBetBatch(socket io.Writer, bets []model.Bet) error {
 
 	//to the next layer
 	if err := safe_socket.SendAll(socket, batchMessage); err != nil {
-		logger.Error("send-message", logger.Fail) //TODO: ver que mas agregarle al log y si es correcto ponerlo aca o con la capa de arriba basta xd
+		logger.Error("send-message", logger.Fail)
 		return err
 	}
 	return nil

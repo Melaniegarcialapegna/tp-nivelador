@@ -32,7 +32,7 @@ def receive_bets(socket) -> Iterator[list[Bet]]:
             lenght_batch = _length_from_header(header_buffer)
             batch_bytes = safe_socket.recv_all(socket, lenght_batch) 
 
-            #Return the bets
+            #Return the bets in a batch
             yield _parse_batch(batch_bytes)
 
             header_buffer = _receive_header(socket)

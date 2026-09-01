@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 
 const CONNECTION_ATTEMPTS_MAX = 3
 const CONNECTION_ATTEMPS_DELAY_MS = 200
+const AMOUNT_OF_FIELDS_PER_BET = 5
+const EMPTY_SLICE = 0
 
 type ClientConfig struct {
 	ServerHost string
@@ -82,123 +85,131 @@ func (client *Client) Run() error {
 
 	scanner := bufio.NewScanner(inputFile)
 
-	messageId := 0
-
-	batch := make([]model.Bet, 0, client.config.BatchSize)
+	batch := make([]model.Bet, EMPTY_SLICE, client.config.BatchSize)
 
 	for scanner.Scan() {
 		lineBet := scanner.Text()
-		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
-		// logger.Info(mainAction, logger.InProgress, messageArgs...)
 
-		//Armo Bet
-		//TODO : Modularizar todo xd
-		fieldsBet := strings.Split(lineBet, ",")
-
-		agencyId, err := strconv.Atoi(client.config.AgencyId)
+		bet, err := parseBetFromCSVLine(lineBet, client.config.AgencyId)
 		if err != nil {
-			logger.Error("parse-agency-id", logger.Fail, messageArgs...)
 			return err
-		}
-
-		document, err := strconv.Atoi(fieldsBet[2])
-		if err != nil {
-			logger.Error("parse-document", logger.Fail, messageArgs...)
-			return err
-		}
-
-		number, err := strconv.Atoi(fieldsBet[4])
-		if err != nil {
-			logger.Error("parse-number", logger.Fail, messageArgs...)
-			return err
-		}
-
-		bet := model.Bet{
-			AgencyId:  int32(agencyId),
-			FirstName: fieldsBet[0],
-			LastName:  fieldsBet[1],
-			Document:  int32(document),
-			Birthdate: fieldsBet[3],
-			Number:    int32(number),
 		}
 
 		batch = append(batch, bet)
 
 		if len(batch) == client.config.BatchSize {
-			//Se le pasa al protocolo para que lo envie
-			if err := protocol.SendBetBatch(client.conn, batch); err != nil {
-				logger.Error("send-bet", logger.Fail, messageArgs...)
+			if err := sendBatch(client, batch); err != nil {
 				return err
 			}
-
-			//espera el ack del server
-			success, err := protocol.ReceiveAck(client.conn)
-
-			if !success {
-				logger.Error("receive-ack", logger.Fail, messageArgs...)
-				return err
-			}
-			if err != nil {
-				logger.Error("receive-ack", logger.Fail, messageArgs...)
-				return err
-			}
-
-			batch = batch[:0]
+			batch = batch[:EMPTY_SLICE] //drop
 		}
-
-		messageId++
 	}
 
-	//Caso en el que sale del loop no porque se termina de leer el archivo sino porque ocurrio un error al leer
+	//Case when the scanner encounters an error while reading the input file
 	if err := scanner.Err(); err != nil {
-		//TODO : sacar codigo rep del "agency-id y error"
 		logger.Error("read-input-file", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
-	//Si quedaron apuestas en el batch que no se enviaron porque no se lleno el batch
-	if len(batch) > 0 {
-		if err := protocol.SendBetBatch(client.conn, batch); err != nil {
-			logger.Error("send-bet", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
-			return err
-		}
-
-		//espera el ack del server
-		success, err := protocol.ReceiveAck(client.conn)
-
-		if !success {
-			logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
-			return err
-		}
-		if err != nil {
-			logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+	//Case when the last batch is not full, but there are still bets to send
+	if len(batch) > EMPTY_SLICE {
+		if err := sendBatch(client, batch); err != nil {
 			return err
 		}
 	}
 
-	//Se le avisa al protocolo que no se van a mandar mas apuestas
+	//Send to the protocol that the client has finished sending bets
 	if err := protocol.SendEnd(client.conn); err != nil {
 		logger.Error("send-end", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
-	//Se espera la rta del ganador y se persiste en archivo
-	//TODO : Modularizar todo
+	//Waits for the winners bets from the server
 	winnersBets, err := protocol.ReceiveWinners(client.conn)
 	if err != nil {
 		logger.Error("receive-winners", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
-	for _, winnerBet := range winnersBets {
-		lineBet := winnerBet.FirstName + "," + winnerBet.LastName + "," + strconv.Itoa(int(winnerBet.Document)) + "," + winnerBet.Birthdate + "," + strconv.Itoa(int(winnerBet.Number)) + "\n"
-		if _, err := outputFile.WriteString(lineBet); err != nil {
-			logger.Error("write-output", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
-			return err
-		}
+	if err := persistWinnersToFile(winnersBets, outputFile, client.config.AgencyId); err != nil {
+		return err
 	}
 
 	logger.Info(mainAction, logger.Success, "agency-id", client.config.AgencyId)
 
 	return nil
+}
+
+func persistWinnersToFile(winnersBets []model.Bet, outputFile *os.File, agencyId string) error {
+	for _, winnerBet := range winnersBets {
+		lineBet := winnerBet.FirstName + "," + winnerBet.LastName + "," + strconv.Itoa(int(winnerBet.Document)) + "," + winnerBet.Birthdate + "," + strconv.Itoa(int(winnerBet.Number)) + "\n"
+		if _, err := outputFile.WriteString(lineBet); err != nil {
+			logger.Error("write-output", logger.Fail, "agency-id", agencyId, "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func sendBatch(client *Client, batch []model.Bet) error {
+	if err := protocol.SendBetBatch(client.conn, batch); err != nil {
+		logger.Error("send-bet", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return err
+	}
+
+	//waits for the ack from the server
+	success, err := protocol.ReceiveAck(client.conn)
+
+	if !success {
+		logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return err
+	}
+	if err != nil {
+		logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return err
+	}
+	return nil
+}
+
+func parseBetFromCSVLine(line string, agencyIdStr string) (model.Bet, error) {
+	fields := strings.Split(line, ",")
+	if len(fields) != AMOUNT_OF_FIELDS_PER_BET {
+		return model.Bet{}, fmt.Errorf("expected %d fields, got %d", AMOUNT_OF_FIELDS_PER_BET, len(fields))
+	}
+
+	agencyId, err := parsefields(agencyIdStr, 0, "parse-agency-id")
+	if err != nil {
+		return model.Bet{}, err
+	}
+
+	document, err := parsefields(fields[2], int(agencyId), "parse-document")
+	if err != nil {
+		return model.Bet{}, err
+	}
+
+	number, err := parsefields(fields[4], int(agencyId), "parse-number")
+	if err != nil {
+		return model.Bet{}, err
+	}
+
+	bet := model.Bet{
+		AgencyId:  int32(agencyId),
+		FirstName: fields[0],
+		LastName:  fields[1],
+		Document:  int32(document),
+		Birthdate: fields[3],
+		Number:    int32(number),
+	}
+
+	return bet, nil
+
+}
+
+func parsefields(fieldStr string, agencyId int, action string) (int32, error) {
+	field, err := strconv.Atoi(fieldStr)
+	if err != nil {
+		logger.Error(action, logger.Fail, "agency-id", agencyId, "error", err)
+		return 0, err
+	}
+	return int32(field), nil
 }
