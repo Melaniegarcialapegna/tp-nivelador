@@ -12,27 +12,13 @@ import (
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
 )
 
-// TODO: ver si poner ctes en otro lado
-const AMOUNT_BYTES_UINT8 = 1
-const AMOUNT_BYTES_UINT16 = 2
-const AMOUNT_BYTES_UINT32 = 4
-const HEADER_AMOUNT = 5
-
-// ctes de protocolo
-const (
-	MESSAGE_TYPE_BET      = 0 // hay una apuesta/ganador
-	MESSAGE_TYPE_END      = 1 // termino de enviar
-	MESSAGE_TYPE_ACK_OK   = 2 //ack de recepcion correcta
-	MESSAGE_TYPE_ACK_FAIL = 3 //ack de recepcion con error
-)
-
 // serializa apuesta, le agrega header y manda por socket
 func SendBetBatch(socket io.Writer, bets []model.Bet) error {
 	betsMessage := make([]byte, 0)
 	for _, bet := range bets {
 		//TODO: modularizar
 		betBytes := serializeBet(bet) //internamente maneja los campos dinamicos
-		lenhgtBetBytes := make([]byte, AMOUNT_BYTES_UINT32)
+		lenhgtBetBytes := make([]byte, LENGTH_FIELD_SIZE_BYTES)
 		binary.BigEndian.PutUint32(lenhgtBetBytes, uint32(len(betBytes)))
 		betsMessage = append(betsMessage, lenhgtBetBytes...)
 		betsMessage = append(betsMessage, betBytes...)
@@ -56,11 +42,11 @@ func SendBetBatch(socket io.Writer, bets []model.Bet) error {
 func createHeader(payloadSize int) []byte {
 	header := make([]byte, 0) //TODO: poner 0 en cte
 
-	typeMessageBytes := make([]byte, AMOUNT_BYTES_UINT8)
+	typeMessageBytes := make([]byte, TYPE_MESSAGE_SIZE_BYTES)
 	typeMessageBytes[0] = byte(MESSAGE_TYPE_BET)
 	header = append(header, typeMessageBytes...)
 
-	payloadSizeBytes := make([]byte, AMOUNT_BYTES_UINT32)
+	payloadSizeBytes := make([]byte, LENGTH_FIELD_SIZE_BYTES)
 	binary.BigEndian.PutUint32(payloadSizeBytes, uint32(payloadSize))
 	header = append(header, payloadSizeBytes...)
 
@@ -68,7 +54,7 @@ func createHeader(payloadSize int) []byte {
 }
 
 func ReceiveAck(socket io.Reader) (bool, error) {
-	message, err := safe_socket.RecvAll(socket, AMOUNT_BYTES_UINT8)
+	message, err := safe_socket.RecvAll(socket, ACK_MESSAGE_SIZE_BYTES)
 	if err != nil {
 		logger.Error("recv-ack", logger.Fail) //TODO: ver que mas agregarle al log y si es correcto ponerlo aca o con la capa de arriba basta xd
 		return false, err
@@ -86,13 +72,13 @@ func ReceiveAck(socket io.Reader) (bool, error) {
 func SendEnd(socket io.Writer) error {
 	messageEnd := make([]byte, 0) //TODO: poner 0 en cte
 
-	typeMessageBytes := make([]byte, AMOUNT_BYTES_UINT8)
+	typeMessageBytes := make([]byte, TYPE_MESSAGE_SIZE_BYTES)
 	typeMessageBytes[0] = byte(MESSAGE_TYPE_END)
 	messageEnd = append(messageEnd, typeMessageBytes...)
 
 	//MANDO 4 bytes de longitud en 0 para respetar header
-	payloadSizeBytes := make([]byte, AMOUNT_BYTES_UINT32)
-	binary.BigEndian.PutUint32(payloadSizeBytes, uint32(0))
+	payloadSizeBytes := make([]byte, LENGTH_FIELD_SIZE_BYTES)
+	binary.BigEndian.PutUint32(payloadSizeBytes, uint32(EMPTY_MESSAGE))
 	messageEnd = append(messageEnd, payloadSizeBytes...)
 
 	if err := safe_socket.SendAll(socket, messageEnd); err != nil {
@@ -113,14 +99,14 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 	winnersBets := make([]model.Bet, 0)
 
 	//TODO: modularizar
-	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_AMOUNT)
+	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_SIZE_BYTES)
 	if err != nil {
 		logger.Error("recv-response", logger.Fail) //TODO
 		return []model.Bet{}, err
 	}
 
 	for headerBuffer[0] == byte(MESSAGE_TYPE_BET) {
-		lenghtPayload := binary.BigEndian.Uint32(headerBuffer[AMOUNT_BYTES_UINT8:HEADER_AMOUNT])
+		lenghtPayload := binary.BigEndian.Uint32(headerBuffer[TYPE_MESSAGE_SIZE_BYTES:HEADER_SIZE_BYTES])
 
 		winnerBetBytes, err := safe_socket.RecvAll(socket, int(lenghtPayload))
 		if err != nil {
@@ -136,7 +122,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
 		winnersBets = append(winnersBets, winnerBet)
 
-		headerBuffer, err = safe_socket.RecvAll(socket, HEADER_AMOUNT)
+		headerBuffer, err = safe_socket.RecvAll(socket, HEADER_SIZE_BYTES)
 		if err != nil {
 			logger.Error("recv-response", logger.Fail) //TODO
 			return []model.Bet{}, err

@@ -3,7 +3,7 @@ from lottery import Bet
 FIXED_FIELDS_SIZE_BYTES = 4 
 BIRTHDATE_LENGTH = 10 #YYYY-MM-DD
 
-DIYNAMIC_FIELD_LENGHT_SIZE_BYTES = 2 
+DYNAMIC_FIELD_LENGTH_SIZE_BYTES = 2 
 
 AMOUNT_BYTES_CONST = FIXED_FIELDS_SIZE_BYTES * 3 + BIRTHDATE_LENGTH  # agency_id + document + number + birthdate
 
@@ -32,7 +32,7 @@ def _get_dynamic_field(field: str) -> bytes:
 
     #length of the field in bytes
     field_length = len(field_bytes)
-    field_length_bytes = field_length.to_bytes(DIYNAMIC_FIELD_LENGHT_SIZE_BYTES, byteorder='big')
+    field_length_bytes = field_length.to_bytes(DYNAMIC_FIELD_LENGTH_SIZE_BYTES, byteorder='big')
 
     return field_length_bytes + field_bytes #header of the bet
 
@@ -64,10 +64,10 @@ def deserialize_bet(bet_bytes: bytes) -> Bet:
         number=number)
 
 def _read_dynamic_field(bet_bytes: bytes, position: int):
-    if position + DIYNAMIC_FIELD_LENGHT_SIZE_BYTES > len(bet_bytes):
+    if position + DYNAMIC_FIELD_LENGTH_SIZE_BYTES > len(bet_bytes):
         raise ValueError("Data is too short to contain field length")
 
-    field_length , position = _get_int_from_field(bet_bytes, position, DIYNAMIC_FIELD_LENGHT_SIZE_BYTES)
+    field_length , position = _get_int_from_field(bet_bytes, position, DYNAMIC_FIELD_LENGTH_SIZE_BYTES)
 
     if position + field_length > len(bet_bytes):
         raise ValueError("Data is too short to contain the dynamic field")
