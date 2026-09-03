@@ -11,6 +11,7 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - SERVER_STORAGE_PATH=/output/bets_storage.csv
+      - AGENCY_QUORUM_MIN=5 
     volumes:
       - ./output:/output
 

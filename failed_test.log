@@ -1,18 +1,67 @@
-client_1  | 2026/09/01 03:53:53 INFO action=connect-to-server result=in-progress
-client_1  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=0
-client_1  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=1
-client_1  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=2
-client_1  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail
-client_1  | 2026/09/01 03:53:53 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
+client_1  | 2026/09/03 01:03:04 INFO action=connect-to-server result=in-progress
+client_1  | 2026/09/03 01:03:04 WARN action=connect-to-server result=fail attempt=0
+client_1  | 2026/09/03 01:03:04 WARN action=connect-to-server result=fail attempt=1
+client_1  | 2026/09/03 01:03:04 INFO action=connect-to-server result=success
+client_1  | 2026/09/03 01:03:04 ERROR action=receive-ack result=fail agency-id=1 error=<nil>
+server    | 2026/09/03 01:03:04 INFO action=accept-connection result=in-progress 
+server    | 2026/09/03 01:03:04 INFO action=accept-connection result=success 
+server    | 2026/09/03 01:03:04 INFO action=handle-client result=in-progress 
+server    | 2026/09/03 01:03:04 INFO action=accept-connection result=in-progress 
+server    | 2026/09/03 01:03:04 ERROR action=handle-client result=fail err=[Errno 2] No such file or directory: 'output/bets_storage.csv'
+server    | 2026/09/03 01:03:04 ERROR action=handle-client result=fail err=[Errno 2] No such file or directory: 'output/bets_storage.csv'
+server    | Exception in thread Thread-1 (_handle_client):
 server    | Traceback (most recent call last):
-server    |   File "//src/main.py", line 8, in <module>
-server    |     SERVER_STORAGE_PATH = os.environ["SERVER_STORAGE_PATH"]
-server    |                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-server    |   File "<frozen os>", line 709, in __getitem__
-server    | KeyError: 'SERVER_STORAGE_PATH'
-client_0  | 2026/09/01 03:53:53 INFO action=connect-to-server result=in-progress
-client_0  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=0
-client_0  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=1
-client_0  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail attempt=2
-client_0  | 2026/09/01 03:53:53 WARN action=connect-to-server result=fail
-client_0  | 2026/09/01 03:53:53 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
+server    |   File "/usr/local/lib/python3.14/threading.py", line 1082, in _bootstrap_inner
+server    |     self._context.run(self.run)
+server    |     ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+server    |   File "/usr/local/lib/python3.14/threading.py", line 1024, in run
+server    |     self._target(*self._args, **self._kwargs)
+server    |     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+server    |   File "/src/server/server.py", line 64, in _handle_client
+server    |     raise error
+server    |   File "/src/server/server.py", line 49, in _handle_client
+server    |     first_batch = self._store_bets(client_socket)
+server    |   File "/src/server/server.py", line 81, in _store_bets
+server    |     raise error
+server    |   File "/src/server/server.py", line 73, in _store_bets
+server    |     self.lottery.store_bets(bets_batch)
+server    |     ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+server    |   File "/src/lottery/lottery.py", line 16, in store_bets
+server    |     with open(self.storage_path, "a+") as file:
+server    |          ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+server    | FileNotFoundError: [Errno 2] No such file or directory: 'output/bets_storage.csv'
+server    | 2026/09/03 01:03:04 INFO action=accept-connection result=success 
+server    | 2026/09/03 01:03:04 INFO action=handle-client result=in-progress 
+server    | 2026/09/03 01:03:04 INFO action=accept-connection result=in-progress 
+server    | 2026/09/03 01:03:04 ERROR action=handle-client result=fail err=[Errno 2] No such file or directory: 'output/bets_storage.csv'
+server    | 2026/09/03 01:03:04 ERROR action=handle-client result=fail err=[Errno 2] No such file or directory: 'output/bets_storage.csv'
+server    | Exception in thread Thread-2 (_handle_client):
+server    | Traceback (most recent call last):
+client_0  | 2026/09/03 01:03:04 INFO action=connect-to-server result=in-progress
+client_0  | 2026/09/03 01:03:04 WARN action=connect-to-server result=fail attempt=0
+client_0  | 2026/09/03 01:03:04 WARN action=connect-to-server result=fail attempt=1
+client_0  | 2026/09/03 01:03:04 INFO action=connect-to-server result=success
+client_0  | 2026/09/03 01:03:04 ERROR action=receive-ack result=fail agency-id=0 error=<nil>
+client_0  | 2026/09/03 01:03:04 ERROR action=recv-header result=fail
+client_0  | 2026/09/03 01:03:04 ERROR action=recv-winners result=fail
+client_0  | 2026/09/03 01:03:04 ERROR action=receive-winners result=fail agency-id=0 error="read tcp 172.18.0.3:42788->172.18.0.2:5678: read: connection reset by peer"
+client_0  | 2026/09/03 01:03:04 ERROR action=client-run result=fail err="read tcp 172.18.0.3:42788->172.18.0.2:5678: read: connection reset by peer"
+server    |   File "/usr/local/lib/python3.14/threading.py", line 1082, in _bootstrap_inner
+server    |     self._context.run(self.run)
+server    |     ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+server    |   File "/usr/local/lib/python3.14/threading.py", line 1024, in run
+server    |     self._target(*self._args, **self._kwargs)
+server    |     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+server    |   File "/src/server/server.py", line 64, in _handle_client
+server    |     raise error
+server    |   File "/src/server/server.py", line 49, in _handle_client
+server    |     first_batch = self._store_bets(client_socket)
+server    |   File "/src/server/server.py", line 81, in _store_bets
+server    |     raise error
+server    |   File "/src/server/server.py", line 73, in _store_bets
+server    |     self.lottery.store_bets(bets_batch)
+server    |     ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+server    |   File "/src/lottery/lottery.py", line 16, in store_bets
+server    |     with open(self.storage_path, "a+") as file:
+server    |          ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+server    | FileNotFoundError: [Errno 2] No such file or directory: 'output/bets_storage.csv'

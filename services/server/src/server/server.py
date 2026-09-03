@@ -1,4 +1,5 @@
 import socket
+import threading
 import logger
 import protocol
 from lottery import Lottery
@@ -8,10 +9,14 @@ ACTION_ACEPT_CONNECTION = "accept-connection"
 ACTION_HANDLE_CLIENT = "handle-client"
 
 class Server:
-    def __init__(self, server_host: str, server_port: int,storage_path: str) -> None:
+    def __init__(self, server_host: str, server_port: int,storage_path: str, agency_quorum_min: int) -> None:
         self.server_host = server_host
         self.server_port = server_port
         self.lottery = Lottery(storage_path) # shared with all the clients
+        self.file_lock = threading.Lock()  # Lock for file access
+        self.agency_quorum_min = agency_quorum_min
+        self.agencies_finished = 0
+        self.quorum_condition = threading.Condition()
 
     def run(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
@@ -19,7 +24,10 @@ class Server:
             server_socket.listen()
             while True:
                 client_socket = self._accept_connection(server_socket)
-                self._handle_client(client_socket)
+
+                # For each client a new thread and continue accepting connections 
+                threading.Thread( target=self._handle_client, args=(client_socket,) ).start()
+                
 
     def _accept_connection(self, server_socket):
         logger.info(ACTION_ACEPT_CONNECTION, logger.LogResult.in_progress)
@@ -40,6 +48,9 @@ class Server:
 
             first_batch = self._store_bets(client_socket)
             agency_id = self._agency_id_from(first_batch)
+
+            # block thread until the quorum is done
+            self._wait_for_quorum()
                 
             winners_bets = self._winners_for_agency(agency_id)
 
@@ -74,12 +85,23 @@ class Server:
     def _agency_id_from(self, bets_batch):
         return bets_batch[0].agency_id if bets_batch else None
 
+    def _wait_for_quorum(self):
+        with self.quorum_condition:
+            self.agencies_finished += 1
+            logger.info("quorum-check",logger.LogResult.in_progress, "agencies_finished", self.agencies_finished)
+
+            if self.agencies_finished >= self.agency_quorum_min:
+                self.quorum_condition.notify_all()
+            else:
+                self.quorum_condition.wait_for(lambda: self.agencies_finished >= self.agency_quorum_min)
+
     def _winners_for_agency(self, agency_id: str):
         winners_bets = []
 
-        for bet in self.lottery.load_bets():
-            if bet.agency_id == agency_id and self.lottery.has_won(bet):
-                winners_bets.append(bet)
+        with self.file_lock:
+            for bet in self.lottery.load_bets():
+                if bet.agency_id == agency_id and self.lottery.has_won(bet):
+                    winners_bets.append(bet)
 
         return winners_bets
 

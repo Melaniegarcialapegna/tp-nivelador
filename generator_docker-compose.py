@@ -16,6 +16,7 @@ SERVER_CONTENT = """services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - SERVER_STORAGE_PATH=/output/bets_storage.csv
+      - AGENCY_QUORUM_MIN={i} 
     volumes:
       - ./output:/output
 """
@@ -70,9 +71,9 @@ def parse_number_of_clients():
 
     return number_of_clients
 
-def generate_docker_compose(number_of_clients, batch_size=5):
+def generate_docker_compose(number_of_clients, batch_size=5, quorum_min=5):
     file_content = ""
-    file_content += SERVER_CONTENT
+    file_content += SERVER_CONTENT.format(i=quorum_min)
     for i in range (number_of_clients):
         file_content+=CLIENT_CONTENT.format(i=i,j=batch_size)
 
