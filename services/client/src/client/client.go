@@ -31,8 +31,9 @@ type ClientConfig struct {
 }
 
 type Client struct {
-	conn   net.Conn
-	config ClientConfig
+	conn     net.Conn
+	protocol *protocol.Protocol
+	config   ClientConfig
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -42,7 +43,11 @@ func NewClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
-	client := &Client{conn: conn, config: config}
+	client := &Client{
+		conn:     conn,
+		protocol: protocol.NewProtocol(conn),
+		config:   config,
+	}
 	return client, nil
 }
 
@@ -148,7 +153,7 @@ func (client *Client) Run(ctx context.Context) error {
 	}
 
 	//Send to the protocol that the client has finished sending bets
-	if err := protocol.SendEnd(client.conn); err != nil {
+	if err := client.protocol.SendEnd(); err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -157,7 +162,7 @@ func (client *Client) Run(ctx context.Context) error {
 	}
 
 	//Waits for the winners bets from the server
-	winnersBets, err := protocol.ReceiveWinners(client.conn)
+	winnersBets, err := client.protocol.ReceiveWinners()
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -189,13 +194,13 @@ func persistWinnersToFile(winnersBets []model.Bet, outputFile *os.File, agencyId
 
 func sendBatch(client *Client, batch []model.Bet) error {
 	const action = "send-bet-batch"
-	if err := protocol.SendBetBatch(client.conn, batch); err != nil {
+	if err := client.protocol.SendBetBatch(batch); err != nil {
 		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
 	//waits for the ack from the server
-	success, err := protocol.ReceiveAck(client.conn)
+	success, err := client.protocol.ReceiveAck()
 
 	if !success {
 		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)

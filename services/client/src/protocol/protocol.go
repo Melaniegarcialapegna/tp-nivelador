@@ -12,69 +12,40 @@ import (
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
 )
 
-const ACTION_RECEIVE_ACK = "receive-ack"
-const ACTION_SEND_END = "send-end"
+type Protocol struct {
+	conn io.ReadWriter
+}
+
+func NewProtocol(conn io.ReadWriter) *Protocol {
+	return &Protocol{conn: conn}
+}
 
 // Sends a batch of bets to the server
-func SendBetBatch(socket io.Writer, bets []model.Bet) error {
+func (p *Protocol) SendBetBatch(bets []model.Bet) error {
 	batchMessage := make([]byte, EMPTY_SLICE)
 
-	batchMessageWithoutHeader := makeBatchMessageWithoutHeader(bets)
+	batchMessageWithoutHeader := p.makeBatchMessageWithoutHeader(bets)
 
-	header := createHeader(len(batchMessageWithoutHeader))
+	header := p.createHeader(len(batchMessageWithoutHeader))
 
 	batchMessage = append(batchMessage, header...)
 	batchMessage = append(batchMessage, batchMessageWithoutHeader...)
 
 	//to the next layer
-	if err := safe_socket.SendAll(socket, batchMessage); err != nil {
+	if err := safe_socket.SendAll(p.conn, batchMessage); err != nil {
 		logger.Error("send-message", logger.Fail)
 		return err
 	}
 	return nil
 }
 
-func makeBatchMessageWithoutHeader(bets []model.Bet) []byte {
-	batchMessage := make([]byte, EMPTY_SLICE)
-	for _, bet := range bets {
-		betBytes := serializeBet(bet) //intern handle dynamic fields
-
-		lenhgtBetBytes := make([]byte, LENGTH_FIELD_SIZE_BYTES)
-		binary.BigEndian.PutUint32(lenhgtBetBytes, uint32(len(betBytes)))
-
-		batchMessage = append(batchMessage, lenhgtBetBytes...)
-		batchMessage = append(batchMessage, betBytes...)
-	}
-	return batchMessage
-}
-
-func createHeader(batchSize int) []byte {
-	header := make([]byte, EMPTY_SLICE)
-
-	//put the type of message in the header
-	header = append(header, getBytesOfTypeMessage(MESSAGE_TYPE_BET)...)
-
-	//put the length of batch in the header
-	header = append(header, getFieldBytesForUint32(uint32(batchSize))...)
-
-	return header
-}
-
-func getBytesOfTypeMessage(messageType int) []byte {
-	typeMessageBytes := make([]byte, TYPE_MESSAGE_SIZE_BYTES)
-	typeMessageBytes[0] = byte(messageType)
-	return typeMessageBytes
-}
-
-// ---
-
 // Waits for an ACK message from the server and returns true if the ACK is OK, false if the ACK is FAIL, and an error if there was an error receiving the message or if the message type is unexpected.
-func ReceiveAck(socket io.Reader) (bool, error) {
-
-	message, err := safe_socket.RecvAll(socket, ACK_MESSAGE_SIZE_BYTES)
+func (p *Protocol) ReceiveAck() (bool, error) {
+	action := "receive-ack"
+	message, err := safe_socket.RecvAll(p.conn, ACK_MESSAGE_SIZE_BYTES)
 
 	if err != nil {
-		logger.Error(ACTION_RECEIVE_ACK, logger.Fail)
+		logger.Error(action, logger.Fail)
 		return false, err
 	}
 
@@ -89,27 +60,28 @@ func ReceiveAck(socket io.Reader) (bool, error) {
 }
 
 // Sends an END message to the server to indicate that no more bets will be sent
-func SendEnd(socket io.Writer) error {
+func (p *Protocol) SendEnd() error {
+	action := "send-end"
 	messageEnd := make([]byte, EMPTY_SLICE)
 
-	messageEnd = append(messageEnd, getBytesOfTypeMessage(MESSAGE_TYPE_END)...)
+	messageEnd = append(messageEnd, p.getBytesOfTypeMessage(MESSAGE_TYPE_END)...)
 
 	//MANDO 4 bytes de longitud en 0 para respetar header
-	messageEnd = append(messageEnd, getFieldBytesForUint32(uint32(EMPTY_MESSAGE))...)
+	messageEnd = append(messageEnd, p.getFieldBytesForUint32(uint32(EMPTY_MESSAGE))...)
 
-	if err := safe_socket.SendAll(socket, messageEnd); err != nil {
-		logger.Error(ACTION_SEND_END, logger.Fail)
+	if err := safe_socket.SendAll(p.conn, messageEnd); err != nil {
+		logger.Error(action, logger.Fail)
 		return err
 	}
 	return nil
 }
 
 // Waits for the server to send the winners and returns a slice of bets representing the winners. It will keep receiving bets until it receives a message of type END.
-func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
+func (p *Protocol) ReceiveWinners() ([]model.Bet, error) {
 	const action = "recv-winners"
 	winnersBets := make([]model.Bet, EMPTY_SLICE)
 
-	headerBuffer, err := receiveHeader(action, socket)
+	headerBuffer, err := p.receiveHeader(action)
 	if err != nil {
 		logger.Error(action, logger.Fail)
 		return []model.Bet{}, err
@@ -119,7 +91,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
 		lenghtBet := binary.BigEndian.Uint32(headerBuffer[TYPE_MESSAGE_SIZE_BYTES:HEADER_SIZE_BYTES])
 
-		winnerBet, err := receiveBet(action, socket, lenghtBet)
+		winnerBet, err := p.receiveBet(lenghtBet)
 		if err != nil {
 			logger.Error(action, logger.Fail)
 			return []model.Bet{}, err
@@ -127,7 +99,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
 		winnersBets = append(winnersBets, winnerBet)
 
-		headerBuffer, err = receiveHeader(action, socket)
+		headerBuffer, err = p.receiveHeader(action)
 		if err != nil {
 			logger.Error(action, logger.Fail)
 			return []model.Bet{}, err
@@ -135,15 +107,15 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
 	}
 
-	if checkEndOfBets(action, headerBuffer) == false {
+	if p.checkEndOfBets(action, headerBuffer) == false {
 		return []model.Bet{}, errors.New("unexpected message type received")
 	}
 
 	return winnersBets, nil
 }
 
-func receiveHeader(action string, socket io.Reader) ([]byte, error) {
-	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_SIZE_BYTES)
+func (p *Protocol) receiveHeader(action string) ([]byte, error) {
+	headerBuffer, err := safe_socket.RecvAll(p.conn, HEADER_SIZE_BYTES)
 	if err != nil {
 		logger.Error(action, logger.Fail)
 		return nil, err
@@ -151,14 +123,15 @@ func receiveHeader(action string, socket io.Reader) ([]byte, error) {
 	return headerBuffer, nil
 }
 
-func receiveBet(action string, socket io.Reader, lenghtBet uint32) (model.Bet, error) {
-	winnerBetBytes, err := safe_socket.RecvAll(socket, int(lenghtBet))
+func (p *Protocol) receiveBet(lenghtBet uint32) (model.Bet, error) {
+	action := "recv-bet"
+	winnerBetBytes, err := safe_socket.RecvAll(p.conn, int(lenghtBet))
 	if err != nil {
 		logger.Error(action, logger.Fail)
 		return model.Bet{}, err
 	}
 
-	winnerBet, err := deserializeBet(winnerBetBytes)
+	winnerBet, err := p.deserializeBet(winnerBetBytes)
 	if err != nil {
 		logger.Error(action, logger.Fail)
 		return model.Bet{}, err
@@ -166,7 +139,39 @@ func receiveBet(action string, socket io.Reader, lenghtBet uint32) (model.Bet, e
 	return winnerBet, nil
 }
 
-func checkEndOfBets(action string, headerBuffer []byte) bool {
+func (p *Protocol) makeBatchMessageWithoutHeader(bets []model.Bet) []byte {
+	batchMessage := make([]byte, EMPTY_SLICE)
+	for _, bet := range bets {
+		betBytes := p.serializeBet(bet) //intern handle dynamic fields
+
+		lenhgtBetBytes := make([]byte, LENGTH_FIELD_SIZE_BYTES)
+		binary.BigEndian.PutUint32(lenhgtBetBytes, uint32(len(betBytes)))
+
+		batchMessage = append(batchMessage, lenhgtBetBytes...)
+		batchMessage = append(batchMessage, betBytes...)
+	}
+	return batchMessage
+}
+
+func (p *Protocol) createHeader(batchSize int) []byte {
+	header := make([]byte, EMPTY_SLICE)
+
+	//put the type of message in the header
+	header = append(header, p.getBytesOfTypeMessage(MESSAGE_TYPE_BET)...)
+
+	//put the length of batch in the header
+	header = append(header, p.getFieldBytesForUint32(uint32(batchSize))...)
+
+	return header
+}
+
+func (p *Protocol) getBytesOfTypeMessage(messageType int) []byte {
+	typeMessageBytes := make([]byte, TYPE_MESSAGE_SIZE_BYTES)
+	typeMessageBytes[0] = byte(messageType)
+	return typeMessageBytes
+}
+
+func (p *Protocol) checkEndOfBets(action string, headerBuffer []byte) bool {
 	if headerBuffer[0] != byte(MESSAGE_TYPE_END) {
 		logger.Error(action, logger.Fail, "unexpected-message-type")
 		return false
