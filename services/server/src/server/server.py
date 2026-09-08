@@ -27,6 +27,7 @@ class Server:
         self.clients_lock = threading.Lock()
 
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+        signal.signal(signal.SIGINT, self._handle_sigterm)
 
     def _handle_sigterm(self, signum, frame):
         action = "sigterm-received"
