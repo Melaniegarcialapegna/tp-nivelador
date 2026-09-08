@@ -1,7 +1,0 @@
-client_short_read_write_tester  | go: warning: ignoring go.mod in $GOPATH /go
-client_short_read_write_tester  | --- FAIL: TestShortReadWrite (0.00s)
-client_short_read_write_tester  |     --- FAIL: TestShortReadWrite/Short_Write (0.00s)
-client_short_read_write_tester  |         safe_socket_test.go:66: write_all returned an error: connection closed before sending all data
-client_short_read_write_tester  | FAIL
-client_short_read_write_tester  | exit status 1
-client_short_read_write_tester  | FAIL	github.com/7574-sistemas-distribuidos/tp-nivelador/safe_socket	0.001s
