@@ -27,7 +27,7 @@ class Server:
         self.active_clients = []
         self.clients_lock = threading.Lock()
 
-        signal.signal(signal.SIGINT, self._handle_sigterm)
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _handle_sigterm(self, signum, frame):
         logger.info("signal-received", logger.LogResult.in_progress, "signal", signum)
@@ -46,7 +46,7 @@ class Server:
                 pass
 
         # desblock any receive for a client thread
-        with self.client_lock:
+        with self.clients_lock:
             for client_socket in self.active_clients:
                 try:
                     client_socket.shutdown(socket.SHUT_RDWR)

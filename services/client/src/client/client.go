@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -65,9 +66,17 @@ func connectToServer(host, port string) (net.Conn, error) {
 	return conn, err
 }
 
-func (client *Client) Run() error {
+func (client *Client) Run(ctx context.Context) error {
 	const mainAction = "test-echo-server" //TODO: cambiar
 	defer client.conn.Close()
+
+	// if context cancelled while block in read/wreite in conn
+	// closed the connection to unblock
+	go func() {
+		<-ctx.Done()
+		logger.Info("shutdown-requested", logger.InProgress, "agency-id", client.config.AgencyId)
+		client.conn.Close()
+	}()
 
 	inputFile, err := os.Open(client.config.InputFile)
 	if err != nil {
@@ -88,6 +97,13 @@ func (client *Client) Run() error {
 	batch := make([]model.Bet, EMPTY_SLICE, client.config.BatchSize)
 
 	for scanner.Scan() {
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		lineBet := scanner.Text()
 
 		bet, err := parseBetFromCSVLine(lineBet, client.config.AgencyId)
@@ -99,6 +115,9 @@ func (client *Client) Run() error {
 
 		if len(batch) == client.config.BatchSize {
 			if err := sendBatch(client, batch); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
 				return err
 			}
 			batch = batch[:EMPTY_SLICE] //drop
@@ -114,12 +133,24 @@ func (client *Client) Run() error {
 	//Case when the last batch is not full, but there are still bets to send
 	if len(batch) > EMPTY_SLICE {
 		if err := sendBatch(client, batch); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			return err
 		}
 	}
 
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	//Send to the protocol that the client has finished sending bets
 	if err := protocol.SendEnd(client.conn); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		logger.Error("send-end", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
@@ -127,6 +158,9 @@ func (client *Client) Run() error {
 	//Waits for the winners bets from the server
 	winnersBets, err := protocol.ReceiveWinners(client.conn)
 	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		logger.Error("receive-winners", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}

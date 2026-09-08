@@ -1,18 +1,7 @@
-client_0  | 2026/09/07 23:39:16 INFO action=connect-to-server result=in-progress
-client_0  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=0
-client_0  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=1
-client_0  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=2
-client_0  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail
-client_0  | 2026/09/07 23:39:16 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
-server    | Traceback (most recent call last):
-client_1  | 2026/09/07 23:39:16 INFO action=connect-to-server result=in-progress
-client_1  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=0
-client_1  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=1
-client_1  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail attempt=2
-client_1  | 2026/09/07 23:39:16 WARN action=connect-to-server result=fail
-client_1  | 2026/09/07 23:39:16 ERROR action=client-new result=fail err="dial tcp: lookup server on 127.0.0.11:53: server misbehaving"
-server    |   File "//src/main.py", line 8, in <module>
-server    |     SERVER_STORAGE_PATH = os.environ["SERVER_STORAGE_PATH"]
-server    |                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-server    |   File "<frozen os>", line 709, in __getitem__
-server    | KeyError: 'SERVER_STORAGE_PATH'
+client_short_read_write_tester  | go: warning: ignoring go.mod in $GOPATH /go
+client_short_read_write_tester  | --- FAIL: TestShortReadWrite (0.00s)
+client_short_read_write_tester  |     --- FAIL: TestShortReadWrite/Short_Write (0.00s)
+client_short_read_write_tester  |         safe_socket_test.go:66: write_all returned an error: connection closed before sending all data
+client_short_read_write_tester  | FAIL
+client_short_read_write_tester  | exit status 1
+client_short_read_write_tester  | FAIL	github.com/7574-sistemas-distribuidos/tp-nivelador/safe_socket	0.001s
