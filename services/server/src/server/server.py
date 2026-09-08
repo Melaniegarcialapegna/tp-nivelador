@@ -153,10 +153,11 @@ class Server:
         first_batch = []
         try:
             for i, bets_batch in enumerate(protocol.receive_bets(client_socket)):
-                self.lottery.store_bets(bets_batch)
-                if i == FIRST_BATCH:
-                    first_batch = bets_batch
-                protocol.send_batch_ack(client_socket, success=True)
+                with self.file_lock:
+                    self.lottery.store_bets(bets_batch)
+                    if i == FIRST_BATCH:
+                        first_batch = bets_batch
+                    protocol.send_batch_ack(client_socket, success=True)
 
         except Exception as error:
             if self.running:
