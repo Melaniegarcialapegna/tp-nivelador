@@ -29,7 +29,7 @@ class Server:
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
-    def _handle_sigterm(self, signum, frame):
+    def _handle_sigterm(self, signum : int, frame= None) -> None:
         action = "sigterm-received"
         logger.info(action, logger.LogResult.in_progress, "signal", signum)
 
@@ -58,7 +58,7 @@ class Server:
                 except OSError:
                     pass
 
-    def run(self):
+    def run(self) -> None:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.server_socket.bind((self.server_host, self.server_port))
@@ -80,7 +80,7 @@ class Server:
                 pass
             self._wait_for_client_threds()
 
-    def _wait_for_client_threds(self):
+    def _wait_for_client_threds(self) -> None:
         action = "thread-shutdown"
         logger.info(action, logger.LogResult.in_progress)
         for thread in self.client_threads:
@@ -89,7 +89,7 @@ class Server:
                 logger.error(action, logger.LogResult.fail, "thread", thread.name)
                 
 
-    def _accept_connection(self, server_socket):
+    def _accept_connection(self, server_socket : socket.socket) -> socket.socket:
         action = "accept-connection"
         logger.info(action, logger.LogResult.in_progress)
 
@@ -102,7 +102,7 @@ class Server:
         logger.info(action, logger.LogResult.success)
         return client_socket
 
-    def _handle_client(self, client_socket):
+    def _handle_client(self, client_socket : socket.socket) -> None:
         action = "handle-client"
         self._register_client_socket(client_socket)
         try:
@@ -136,16 +136,16 @@ class Server:
         finally:
             self._unregister_client_socket(client_socket)
 
-    def _register_client_socket(self, sock):
+    def _register_client_socket(self, socket : socket.socket) -> None:
         with self.clients_lock:
-            self.active_clients.append(sock)
+            self.active_clients.append(socket)
 
-    def _unregister_client_socket(self, sock):
+    def _unregister_client_socket(self, socket : socket.socket) -> None:
         with self.clients_lock:
-            if sock in self.active_clients:
-                self.active_clients.remove(sock)
+            if socket in self.active_clients:
+                self.active_clients.remove(socket)
 
-    def _store_bets(self, action, protocol):
+    def _store_bets(self, action : str, protocol : protocol.Protocol) -> list:
         """
         Receives bets from the client and stores them in the lottery. 
         Returns the first batch of bets received.
@@ -167,10 +167,10 @@ class Server:
 
         return first_batch
 
-    def _agency_id_from(self, bets_batch):
+    def _agency_id_from(self, bets_batch : list) -> str:
         return bets_batch[FIRST_BET].agency_id if bets_batch else None
 
-    def _wait_for_quorum(self):
+    def _wait_for_quorum(self) -> bool:
         action = "quorum-check"
         with self.quorum_condition:
             self.agencies_finished += 1
@@ -183,7 +183,7 @@ class Server:
 
             return self.agencies_finished >= self.agency_quorum_min
 
-    def _winners_for_agency(self, agency_id: str):
+    def _winners_for_agency(self, agency_id: str) -> list:
         winners_bets = []
 
         with self.file_lock:
@@ -193,9 +193,9 @@ class Server:
 
         return winners_bets
 
-    def _send_winners_bets(self, protocol, winners_bets):
+    def _send_winners_bets(self, protocol : protocol.Protocol, winners_bets : list) -> None:
         for winner_bet in winners_bets:
             protocol.send_winner_bet(winner_bet)
 
-    def _send_end_of_sending(self, protocol):
+    def _send_end_of_sending(self, protocol : protocol.Protocol) -> None:
         protocol.send_end()

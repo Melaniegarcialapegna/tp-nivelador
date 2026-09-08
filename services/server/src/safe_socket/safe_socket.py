@@ -1,13 +1,13 @@
 import socket
 
-def send_all(socket: socket.socket, bytes):
+def send_all(socket: socket.socket, bytes: bytes) -> int:
     total_sent = 0
     while total_sent < len(bytes): #loop continue until all bytes are sent
         size_sent = socket.send(bytes[total_sent:])
         total_sent += size_sent
     return total_sent
 
-def recv_all(socket: socket.socket, size):
+def recv_all(socket: socket.socket, size: int) -> bytes:
     data = b""
     while len(data) < size: #loop continue until all bytes are read
         data_read = socket.recv(size-len(data))

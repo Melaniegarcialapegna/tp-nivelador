@@ -30,7 +30,7 @@ DYNAMIC_FIELD_LENGTH_SIZE_BYTES = 2
 AMOUNT_BYTES_CONST = FIXED_FIELDS_SIZE_BYTES * 3 + BIRTHDATE_LENGTH  # agency_id + document + number + birthdate
 
 class Protocol:
-    def __init__(self, socket):
+    def __init__(self, socket) -> None:
         self.socket = socket
 
     def receive_bets(self) -> Iterator[list[Bet]]:
@@ -54,19 +54,19 @@ class Protocol:
             logger.error(action, logger.LogResult.fail, "exception", str(e))
             raise e
 
-    def send_batch_ack(self, success):
+    def send_batch_ack(self, success : bool) -> None:
         message_type = MESSAGE_TYPE_ACK_OK if success else MESSAGE_TYPE_ACK_FAIL
         ack_message = (message_type).to_bytes(ACK_MESSAGE_SIZE_BYTES, byteorder='big')
         safe_socket.send_all(self.socket, ack_message)
 
-    def send_winner_bet(self, winner_bet):
+    def send_winner_bet(self, winner_bet : Bet) -> None:
         bet_bytes = self._serialize_bet(winner_bet)
         header = self._create_header_for_bet(len(bet_bytes))
 
         bet_message = header + bet_bytes
         safe_socket.send_all(self.socket, bet_message)
 
-    def send_end(self):
+    def send_end(self) -> None :
         message_end = bytes([MESSAGE_TYPE_END]) + (EMPTY_MESSAGE).to_bytes(LENGTH_FIELD_SIZE_BYTES, byteorder='big')
         safe_socket.send_all(self.socket, message_end)
 
@@ -78,7 +78,7 @@ class Protocol:
     def _length_from_header(self, header_buffer):
         return int.from_bytes(header_buffer[TYPE_MESSAGE_SIZE_BYTES:HEADER_SIZE_BYTES], byteorder='big')
 
-    def _parse_batch(self, bet_bytes):
+    def _parse_batch(self, bet_bytes: bytes) -> list[Bet]:
         bets = []
         for bet_bytes in self._separate_bets_from(bet_bytes):
             bet = self._deserialize_bet(bet_bytes)
@@ -105,8 +105,7 @@ class Protocol:
 
             position += length_bet  
 
-
-    def _check_end_of_bets(self,action,header_buffer):
+    def _check_end_of_bets(self,action : str,header_buffer : bytes) -> None:
         if header_buffer[0] != MESSAGE_TYPE_END:
             logger.error(action, logger.LogResult.fail, "unexpected-message-type")
             raise ValueError("Unexpected message type received")
@@ -135,7 +134,7 @@ class Protocol:
 
         return bet_bytes
 
-    def _get_field_bytes(self, field) -> bytes:
+    def _get_field_bytes(self, field : int) -> bytes:
         return field.to_bytes(FIXED_FIELDS_SIZE_BYTES, byteorder='big')
 
     def _get_dynamic_field(self, field: str) -> bytes:
@@ -175,7 +174,7 @@ class Protocol:
             birthdate=birthdate,
             number=number)
 
-    def _read_dynamic_field(self, bet_bytes: bytes, position: int):
+    def _read_dynamic_field(self, bet_bytes: bytes, position: int) -> tuple[str, int]:
         if position + DYNAMIC_FIELD_LENGTH_SIZE_BYTES > len(bet_bytes):
             raise ValueError("Data is too short to contain field length")
 
@@ -188,10 +187,8 @@ class Protocol:
 
         return field, position
 
-
-
-    def _get_int_from_field(self, bet_bytes: bytes, position: int, length: int):
+    def _get_int_from_field(self, bet_bytes: bytes, position: int, length: int) -> tuple[int, int]:
         return int.from_bytes(bet_bytes[position:position + length], byteorder='big'), position + length
 
-    def _get_str_from_field(self, bet_bytes: bytes, position: int, length: int):
+    def _get_str_from_field(self, bet_bytes: bytes, position: int, length: int) -> tuple[str, int]:
         return bet_bytes[position:position + length].decode('utf-8') , position + length
