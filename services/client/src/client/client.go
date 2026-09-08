@@ -202,14 +202,16 @@ func sendBatch(client *Client, batch []model.Bet) error {
 	//waits for the ack from the server
 	success, err := client.protocol.ReceiveAck()
 
-	if !success {
-		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
-		return errors.New("server failed to process the batch")
-	}
 	if err != nil {
 		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
+
+	if !success {
+		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return errors.New("server failed to process the batch")
+	}
+
 	return nil
 }
 
