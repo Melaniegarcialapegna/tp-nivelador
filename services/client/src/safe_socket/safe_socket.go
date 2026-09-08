@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+const CERO_SIZE_READ = 0
+
 func SendAll(socket io.Writer, bytes []byte) error {
 	totalSent := 0
 	for totalSent < len(bytes) { //loop continue until all bytes are sent
@@ -24,7 +26,7 @@ func RecvAll(socket io.Reader, size int) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if sizeRead == 0 {
+		if sizeRead == CERO_SIZE_READ {
 			break
 		}
 		totalRead += sizeRead

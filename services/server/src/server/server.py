@@ -8,6 +8,12 @@ from lottery import Lottery
 
 ACTION_ACEPT_CONNECTION = "accept-connection"
 ACTION_HANDLE_CLIENT = "handle-client"
+ACTION_SIGNAL_RECEIVED = "signal-received"
+ACTION_THREAD_SHUTDOWN = "thread-shutdown"
+ACTION_WAITING_FOR_THREADS = "waiting-for-threads"
+ACTION_QUORUM_CHECK = "quorum-check"
+FIRST_BET = 0
+FIRST_BATCH = 0
 THREAD_JOIN_TIMEOUT_SECONDS = 4
 
 class Server:
@@ -30,7 +36,7 @@ class Server:
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _handle_sigterm(self, signum, frame):
-        logger.info("signal-received", logger.LogResult.in_progress, "signal", signum)
+        logger.info(ACTION_SIGNAL_RECEIVED, logger.LogResult.in_progress, "signal", signum)
 
         self.running = False
 
@@ -80,10 +86,11 @@ class Server:
             self._wait_for_client_threds()
 
     def _wait_for_client_threds(self):
+        logger.info(ACTION_WAITING_FOR_THREADS, logger.LogResult.in_progress)
         for thread in self.client_threads:
             thread.join(timeout=THREAD_JOIN_TIMEOUT_SECONDS)
-        if thread.is_alive():
-            logger.warning("thread-shutdown", logger.LogResult.fail, "thread", thread.name)
+            if thread.is_alive():
+                logger.error(ACTION_THREAD_SHUTDOWN, logger.LogResult.fail, "thread", thread.name)
                 
 
     def _accept_connection(self, server_socket):
@@ -147,7 +154,7 @@ class Server:
         try:
             for i, bets_batch in enumerate(protocol.receive_bets(client_socket)):
                 self.lottery.store_bets(bets_batch)
-                if i == 0:
+                if i == FIRST_BATCH:
                     first_batch = bets_batch
                 protocol.send_batch_ack(client_socket, success=True)
 
@@ -160,12 +167,12 @@ class Server:
         return first_batch
 
     def _agency_id_from(self, bets_batch):
-        return bets_batch[0].agency_id if bets_batch else None
+        return bets_batch[FIRST_BET].agency_id if bets_batch else None
 
     def _wait_for_quorum(self):
         with self.quorum_condition:
             self.agencies_finished += 1
-            logger.info("quorum-check",logger.LogResult.in_progress, "agencies_finished", self.agencies_finished)
+            logger.info(ACTION_QUORUM_CHECK,logger.LogResult.in_progress, "agencies_finished", self.agencies_finished)
 
             if self.agencies_finished >= self.agency_quorum_min:
                 self.quorum_condition.notify_all()

@@ -12,6 +12,9 @@ import (
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
 )
 
+const ACTION_RECEIVE_ACK = "receive-ack"
+const ACTION_SEND_END = "send-end"
+
 // Sends a batch of bets to the server
 func SendBetBatch(socket io.Writer, bets []model.Bet) error {
 	batchMessage := make([]byte, EMPTY_SLICE)
@@ -71,7 +74,7 @@ func ReceiveAck(socket io.Reader) (bool, error) {
 	message, err := safe_socket.RecvAll(socket, ACK_MESSAGE_SIZE_BYTES)
 
 	if err != nil {
-		logger.Error("recv-ack", logger.Fail)
+		logger.Error(ACTION_RECEIVE_ACK, logger.Fail)
 		return false, err
 	}
 
@@ -95,7 +98,7 @@ func SendEnd(socket io.Writer) error {
 	messageEnd = append(messageEnd, getFieldBytesForUint32(uint32(EMPTY_MESSAGE))...)
 
 	if err := safe_socket.SendAll(socket, messageEnd); err != nil {
-		logger.Error("send-message", logger.Fail)
+		logger.Error(ACTION_SEND_END, logger.Fail)
 		return err
 	}
 	return nil
@@ -141,7 +144,7 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 func receiveHeader(socket io.Reader) ([]byte, error) {
 	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_SIZE_BYTES)
 	if err != nil {
-		logger.Error("recv-header", logger.Fail)
+		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
 		return nil, err
 	}
 	return headerBuffer, nil
@@ -156,7 +159,7 @@ func receiveBet(socket io.Reader, lenghtBet uint32) (model.Bet, error) {
 
 	winnerBet, err := deserializeBet(winnerBetBytes)
 	if err != nil {
-		logger.Error("deserialize-bet", logger.Fail)
+		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
 		return model.Bet{}, err
 	}
 	return winnerBet, nil
@@ -164,7 +167,7 @@ func receiveBet(socket io.Reader, lenghtBet uint32) (model.Bet, error) {
 
 func checkEndOfBets(headerBuffer []byte) bool {
 	if headerBuffer[0] != byte(MESSAGE_TYPE_END) {
-		logger.Error("recv-response", logger.Fail, "unexpected-message-type")
+		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail, "unexpected-message-type")
 		return false
 	}
 	return true

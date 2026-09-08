@@ -7,6 +7,8 @@ import (
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/model"
 )
 
+const POSITION_ERROR = 0
+
 // Serializes a bet to a byte array
 // For the fields that are dinamic in size, will be used a separator to know how many bytes to read for each field
 // like long_dinamic_field_i|dinamic_field_i|
@@ -49,7 +51,7 @@ func getDynamicField(field string) []byte {
 // Deserializes a byte array to a bet
 func deserializeBet(betBytes []byte) (model.Bet, error) {
 	if len(betBytes) < AMOUNT_BYTES_CONST {
-		return model.Bet{}, errors.New("data too short to deserialize a bet") //TODO: hacer tipos errores
+		return model.Bet{}, errors.New("data too short to deserialize a bet")
 	}
 
 	position := 0
@@ -88,7 +90,7 @@ func getInt32FromBytes(bytes []byte, position int) (int32, int) {
 
 func readDynamicField(betBytes []byte, position int) (string, int, error) {
 	if position+DYNAMIC_FIELD_LENGTH_SIZE_BYTES > len(betBytes) {
-		return "", 0, errors.New("data is too short to contain field length")
+		return "", POSITION_ERROR, errors.New("data is too short to contain field length")
 	}
 
 	//read the length of the dynamic field
@@ -96,7 +98,7 @@ func readDynamicField(betBytes []byte, position int) (string, int, error) {
 	position += DYNAMIC_FIELD_LENGTH_SIZE_BYTES
 
 	if position+length > len(betBytes) {
-		return "", 0, errors.New("data is too short to contain the dynamic field")
+		return "", POSITION_ERROR, errors.New("data is too short to contain the dynamic field")
 	}
 
 	//read the dynamic field based on the length

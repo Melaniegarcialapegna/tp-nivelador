@@ -1,6 +1,5 @@
 import socket
 
-
 def send_all(socket: socket.socket, bytes):
     total_sent = 0
     while total_sent < len(bytes): #loop continue until all bytes are sent
