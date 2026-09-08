@@ -108,7 +108,9 @@ class Server:
             with client_socket:
                 logger.info(action, logger.LogResult.in_progress)
 
-                first_batch = self._store_bets(action,client_socket)
+                proto = protocol.Protocol(client_socket)
+
+                first_batch = self._store_bets(action,proto)
                 if not self.running:
                     return
                 
@@ -121,8 +123,8 @@ class Server:
                     
                 winners_bets = self._winners_for_agency(agency_id)
 
-                self._send_winners_bets(client_socket, winners_bets)
-                self._send_end_of_sending(client_socket)
+                self._send_winners_bets(proto, winners_bets)
+                self._send_end_of_sending(proto)
 
                 logger.info(action, logger.LogResult.success)    
 
@@ -142,23 +144,23 @@ class Server:
             if sock in self.active_clients:
                 self.active_clients.remove(sock)
 
-    def _store_bets(self, action, client_socket):
+    def _store_bets(self, action, protocol):
         """
         Receives bets from the client and stores them in the lottery. 
         Returns the first batch of bets received.
         """
         first_batch = []
         try:
-            for i, bets_batch in enumerate(protocol.receive_bets(client_socket)):
+            for i, bets_batch in enumerate(protocol.receive_bets()):
                 with self.file_lock:
                     self.lottery.store_bets(bets_batch)
                     if i == FIRST_BATCH:
                         first_batch = bets_batch
-                    protocol.send_batch_ack(client_socket, success=True)
+                    protocol.send_batch_ack(success=True)
 
         except Exception as error:
             if self.running:
-                protocol.send_batch_ack(client_socket, success=False)
+                protocol.send_batch_ack(success=False)
                 logger.error(action, logger.LogResult.fail, "err", error)
                 raise error
 
@@ -190,9 +192,9 @@ class Server:
 
         return winners_bets
 
-    def _send_winners_bets(self, client_socket, winners_bets):
+    def _send_winners_bets(self, protocol, winners_bets):
         for winner_bet in winners_bets:
-            protocol.send_winner_bet(client_socket, winner_bet)
+            protocol.send_winner_bet(winner_bet)
 
-    def _send_end_of_sending(self, client_socket):
-        protocol.send_end(client_socket)
+    def _send_end_of_sending(self, protocol):
+        protocol.send_end()
