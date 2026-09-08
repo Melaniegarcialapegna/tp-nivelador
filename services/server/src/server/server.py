@@ -5,13 +5,6 @@ import logger
 import protocol
 from lottery import Lottery
 
-
-ACTION_ACEPT_CONNECTION = "accept-connection"
-ACTION_HANDLE_CLIENT = "handle-client"
-ACTION_SIGNAL_RECEIVED = "signal-received"
-ACTION_THREAD_SHUTDOWN = "thread-shutdown"
-ACTION_WAITING_FOR_THREADS = "waiting-for-threads"
-ACTION_QUORUM_CHECK = "quorum-check"
 FIRST_BET = 0
 FIRST_BATCH = 0
 THREAD_JOIN_TIMEOUT_SECONDS = 4
@@ -36,7 +29,8 @@ class Server:
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _handle_sigterm(self, signum, frame):
-        logger.info(ACTION_SIGNAL_RECEIVED, logger.LogResult.in_progress, "signal", signum)
+        action = "sigterm-received"
+        logger.info(action, logger.LogResult.in_progress, "signal", signum)
 
         self.running = False
 
@@ -86,32 +80,35 @@ class Server:
             self._wait_for_client_threds()
 
     def _wait_for_client_threds(self):
-        logger.info(ACTION_WAITING_FOR_THREADS, logger.LogResult.in_progress)
+        action = "thread-shutdown"
+        logger.info(action, logger.LogResult.in_progress)
         for thread in self.client_threads:
             thread.join(timeout=THREAD_JOIN_TIMEOUT_SECONDS)
             if thread.is_alive():
-                logger.error(ACTION_THREAD_SHUTDOWN, logger.LogResult.fail, "thread", thread.name)
+                logger.error(action, logger.LogResult.fail, "thread", thread.name)
                 
 
     def _accept_connection(self, server_socket):
-        logger.info(ACTION_ACEPT_CONNECTION, logger.LogResult.in_progress)
+        action = "accept-connection"
+        logger.info(action, logger.LogResult.in_progress)
 
         try:
             client_socket, _ = server_socket.accept()
         except Exception as error:
-            logger.error(ACTION_ACEPT_CONNECTION, logger.LogResult.fail, "err", error)
+            logger.error(action, logger.LogResult.fail, "err", error)
             raise error
         
-        logger.info(ACTION_ACEPT_CONNECTION, logger.LogResult.success)
+        logger.info(action, logger.LogResult.success)
         return client_socket
 
     def _handle_client(self, client_socket):
+        action = "handle-client"
         self._register_client_socket(client_socket)
         try:
             with client_socket:
-                logger.info(ACTION_HANDLE_CLIENT, logger.LogResult.in_progress)
+                logger.info(action, logger.LogResult.in_progress)
 
-                first_batch = self._store_bets(client_socket)
+                first_batch = self._store_bets(action,client_socket)
                 if not self.running:
                     return
                 
@@ -127,11 +124,11 @@ class Server:
                 self._send_winners_bets(client_socket, winners_bets)
                 self._send_end_of_sending(client_socket)
 
-                logger.info(ACTION_HANDLE_CLIENT, logger.LogResult.success)    
+                logger.info(action, logger.LogResult.success)    
 
         except Exception as error:
                 if self.running:
-                    logger.error(ACTION_HANDLE_CLIENT, logger.LogResult.fail,"err", error)
+                    logger.error(action, logger.LogResult.fail,"err", error)
                     raise error
         finally:
             self._unregister_client_socket(client_socket)
@@ -145,7 +142,7 @@ class Server:
             if sock in self.active_clients:
                 self.active_clients.remove(sock)
 
-    def _store_bets(self, client_socket):
+    def _store_bets(self, action, client_socket):
         """
         Receives bets from the client and stores them in the lottery. 
         Returns the first batch of bets received.
@@ -162,7 +159,7 @@ class Server:
         except Exception as error:
             if self.running:
                 protocol.send_batch_ack(client_socket, success=False)
-                logger.error(ACTION_HANDLE_CLIENT, logger.LogResult.fail, "err", error)
+                logger.error(action, logger.LogResult.fail, "err", error)
                 raise error
 
         return first_batch
@@ -171,9 +168,10 @@ class Server:
         return bets_batch[FIRST_BET].agency_id if bets_batch else None
 
     def _wait_for_quorum(self):
+        action = "quorum-check"
         with self.quorum_condition:
             self.agencies_finished += 1
-            logger.info(ACTION_QUORUM_CHECK,logger.LogResult.in_progress, "agencies_finished", self.agencies_finished)
+            logger.info(action,logger.LogResult.in_progress, "agencies_finished", self.agencies_finished)
 
             if self.agencies_finished >= self.agency_quorum_min:
                 self.quorum_condition.notify_all()

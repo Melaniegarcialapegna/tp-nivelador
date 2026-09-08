@@ -106,11 +106,12 @@ func SendEnd(socket io.Writer) error {
 
 // Waits for the server to send the winners and returns a slice of bets representing the winners. It will keep receiving bets until it receives a message of type END.
 func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
+	const action = "recv-winners"
 	winnersBets := make([]model.Bet, EMPTY_SLICE)
 
-	headerBuffer, err := receiveHeader(socket)
+	headerBuffer, err := receiveHeader(action, socket)
 	if err != nil {
-		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+		logger.Error(action, logger.Fail)
 		return []model.Bet{}, err
 	}
 
@@ -118,56 +119,56 @@ func ReceiveWinners(socket io.Reader) ([]model.Bet, error) {
 
 		lenghtBet := binary.BigEndian.Uint32(headerBuffer[TYPE_MESSAGE_SIZE_BYTES:HEADER_SIZE_BYTES])
 
-		winnerBet, err := receiveBet(socket, lenghtBet)
+		winnerBet, err := receiveBet(action, socket, lenghtBet)
 		if err != nil {
-			logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+			logger.Error(action, logger.Fail)
 			return []model.Bet{}, err
 		}
 
 		winnersBets = append(winnersBets, winnerBet)
 
-		headerBuffer, err = receiveHeader(socket)
+		headerBuffer, err = receiveHeader(action, socket)
 		if err != nil {
-			logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+			logger.Error(action, logger.Fail)
 			return []model.Bet{}, err
 		}
 
 	}
 
-	if checkEndOfBets(headerBuffer) == false {
+	if checkEndOfBets(action, headerBuffer) == false {
 		return []model.Bet{}, errors.New("unexpected message type received")
 	}
 
 	return winnersBets, nil
 }
 
-func receiveHeader(socket io.Reader) ([]byte, error) {
+func receiveHeader(action string, socket io.Reader) ([]byte, error) {
 	headerBuffer, err := safe_socket.RecvAll(socket, HEADER_SIZE_BYTES)
 	if err != nil {
-		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+		logger.Error(action, logger.Fail)
 		return nil, err
 	}
 	return headerBuffer, nil
 }
 
-func receiveBet(socket io.Reader, lenghtBet uint32) (model.Bet, error) {
+func receiveBet(action string, socket io.Reader, lenghtBet uint32) (model.Bet, error) {
 	winnerBetBytes, err := safe_socket.RecvAll(socket, int(lenghtBet))
 	if err != nil {
-		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+		logger.Error(action, logger.Fail)
 		return model.Bet{}, err
 	}
 
 	winnerBet, err := deserializeBet(winnerBetBytes)
 	if err != nil {
-		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail)
+		logger.Error(action, logger.Fail)
 		return model.Bet{}, err
 	}
 	return winnerBet, nil
 }
 
-func checkEndOfBets(headerBuffer []byte) bool {
+func checkEndOfBets(action string, headerBuffer []byte) bool {
 	if headerBuffer[0] != byte(MESSAGE_TYPE_END) {
-		logger.Error(ACTION_RECEIVE_WINNERS, logger.Fail, "unexpected-message-type")
+		logger.Error(action, logger.Fail, "unexpected-message-type")
 		return false
 	}
 	return true

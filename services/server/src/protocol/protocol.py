@@ -11,7 +11,6 @@ MESSAGE_TYPE_ACK_OK = 2 #ack of reception without error
 MESSAGE_TYPE_ACK_FAIL = 3 #ack of reception with error
 #-------------------------------------------------------
 
-ACTION_RECEIVE_BETS = "receive-bets"
 
 TYPE_MESSAGE_SIZE_BYTES = 1
 ACK_MESSAGE_SIZE_BYTES = 1
@@ -24,6 +23,7 @@ EMPTY_MESSAGE = 0
 
 
 def receive_bets(socket) -> Iterator[list[Bet]]:
+    action = "receive-bets"
     try:  
         header_buffer = _receive_header(socket)
 
@@ -37,10 +37,10 @@ def receive_bets(socket) -> Iterator[list[Bet]]:
 
             header_buffer = _receive_header(socket)
 
-        _check_end_of_bets(header_buffer)
+        _check_end_of_bets(action,header_buffer)
 
     except Exception as e:
-        logger.error(ACTION_RECEIVE_BETS, logger.LogResult.fail, "exception", str(e))
+        logger.error(action, logger.LogResult.fail, "exception", str(e))
         raise e
 
 def _receive_header(socket):
@@ -77,9 +77,9 @@ def _separate_bets_from(batch_bytes: bytes) -> Iterator[bytes]:
         position += length_bet  
 
 
-def _check_end_of_bets(header_buffer):
+def _check_end_of_bets(action,header_buffer):
     if header_buffer[0] != MESSAGE_TYPE_END:
-        logger.error(ACTION_RECEIVE_BETS, logger.LogResult.fail, "unexpected-message-type")
+        logger.error(action, logger.LogResult.fail, "unexpected-message-type")
         raise ValueError("Unexpected message type received")
 
 #--

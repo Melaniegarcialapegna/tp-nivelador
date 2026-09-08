@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -67,27 +68,27 @@ func connectToServer(host, port string) (net.Conn, error) {
 }
 
 func (client *Client) Run(ctx context.Context) error {
-	const mainAction = "test-echo-server" //TODO: cambiar
+	const mainAction = "run"
 	defer client.conn.Close()
 
 	// if context cancelled while block in read/wreite in conn
 	// closed the connection to unblock
 	go func() {
 		<-ctx.Done()
-		logger.Info("shutdown-requested", logger.InProgress, "agency-id", client.config.AgencyId)
+		logger.Info(mainAction, logger.InProgress, "agency-id", client.config.AgencyId)
 		client.conn.Close()
 	}()
 
 	inputFile, err := os.Open(client.config.InputFile)
 	if err != nil {
-		logger.Error("open-input-file", logger.Fail, "error", err)
+		logger.Error(mainAction, logger.Fail, "error", err)
 		return err
 	}
 	defer inputFile.Close()
 
 	outputFile, err := os.Create(client.config.OutputFile)
 	if err != nil {
-		logger.Error("open-output-file", logger.Fail, "error", err)
+		logger.Error(mainAction, logger.Fail, "error", err)
 		return err
 	}
 	defer outputFile.Close()
@@ -175,10 +176,11 @@ func (client *Client) Run(ctx context.Context) error {
 }
 
 func persistWinnersToFile(winnersBets []model.Bet, outputFile *os.File, agencyId string) error {
+	const action = "write-output"
 	for _, winnerBet := range winnersBets {
 		lineBet := winnerBet.FirstName + "," + winnerBet.LastName + "," + strconv.Itoa(int(winnerBet.Document)) + "," + winnerBet.Birthdate + "," + strconv.Itoa(int(winnerBet.Number)) + "\n"
 		if _, err := outputFile.WriteString(lineBet); err != nil {
-			logger.Error("write-output", logger.Fail, "agency-id", agencyId, "error", err)
+			logger.Error(action, logger.Fail, "agency-id", agencyId, "error", err)
 			return err
 		}
 	}
@@ -186,8 +188,9 @@ func persistWinnersToFile(winnersBets []model.Bet, outputFile *os.File, agencyId
 }
 
 func sendBatch(client *Client, batch []model.Bet) error {
+	const action = "send-bet-batch"
 	if err := protocol.SendBetBatch(client.conn, batch); err != nil {
-		logger.Error("send-bet", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 
@@ -195,11 +198,11 @@ func sendBatch(client *Client, batch []model.Bet) error {
 	success, err := protocol.ReceiveAck(client.conn)
 
 	if !success {
-		logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
-		return err
+		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		return errors.New("server failed to process the batch")
 	}
 	if err != nil {
-		logger.Error("receive-ack", logger.Fail, "agency-id", client.config.AgencyId, "error", err)
+		logger.Error(action, logger.Fail, "agency-id", client.config.AgencyId, "error", err)
 		return err
 	}
 	return nil
