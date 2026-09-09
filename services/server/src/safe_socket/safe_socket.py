@@ -12,6 +12,6 @@ def recv_all(socket: socket.socket, size: int) -> bytes:
     while len(data) < size: #loop continue until all bytes are read
         data_read = socket.recv(size-len(data))
         if data_read == b"":
-            break
+            continue
         data += data_read
     return data
