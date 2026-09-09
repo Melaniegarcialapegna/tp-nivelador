@@ -71,7 +71,7 @@ def parse_number_of_clients():
 
     return number_of_clients
 
-def generate_docker_compose(number_of_clients, batch_size=5, quorum_min=5):
+def generate_docker_compose(number_of_clients, batch_size=5, quorum_min=16):
     file_content = ""
     file_content += SERVER_CONTENT.format(i=quorum_min)
     for i in range (number_of_clients):
